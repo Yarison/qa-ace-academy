@@ -31,10 +31,26 @@ function MockPage() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const tokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      tokenRef.current = data.session?.access_token ?? null;
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      tokenRef.current = session?.access_token ?? null;
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: () => ({ topic: TOPICS.find((t) => t.id === topic)?.label ?? topic }),
+      headers: (): Record<string, string> => {
+        const token = tokenRef.current;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
     }),
   });
 

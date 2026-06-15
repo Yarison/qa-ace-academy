@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { createClient } from "@supabase/supabase-js";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import type { Database } from "@/integrations/supabase/types";
+
+const ALLOWED_TOPICS = [
+  "General QA (API + SQL + Playwright)",
+  "API testing",
+  "SQL",
+  "Playwright",
+  "Manual testing & test strategy",
+];
 
 const SYSTEM = (topic: string) => `You are an experienced QA hiring manager running a focused mock interview about "${topic}".
 Rules:
@@ -15,11 +25,37 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+        if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+          return new Response("Server misconfigured", { status: 500 });
+        }
+
+        const authHeader = request.headers.get("authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+        const token = authHeader.replace("Bearer ", "");
+
+        const supabase = createClient<Database>(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY,
+          {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+          }
+        );
+
+        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+        if (claimsError || !claimsData?.claims?.sub) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
         const body = (await request.json()) as { messages: UIMessage[]; topic?: string };
-        const topic = body.topic || "general QA testing (API + SQL + Playwright)";
+        const topic = ALLOWED_TOPICS.includes(body.topic ?? "") ? body.topic! : ALLOWED_TOPICS[0];
 
         const gateway = createLovableAiGatewayProvider(key);
         const result = streamText({
