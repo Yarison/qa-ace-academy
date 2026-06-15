@@ -2,12 +2,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { Terminal, LogOut } from "lucide-react";
 
 const links = [
-  { to: "/practice", label: "practice" },
-  { to: "/sql-playground", label: "sql" },
-  { to: "/mock", label: "mock" },
+  { to: "/practice", label: "Practice" },
+  { to: "/sql-playground", label: "SQL Playground" },
+  { to: "/mock", label: "Mock Interview" },
 ] as const;
 
 export function Nav() {
@@ -21,51 +20,55 @@ export function Nav() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-        <Link to="/" className="flex items-center gap-2 font-mono font-bold text-terminal">
-          <Terminal className="h-4 w-4" />
-          qa.repl
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
+      <nav className="mx-auto flex h-12 max-w-6xl items-center gap-8 px-6 text-[13px]">
+        <Link to="/" className="font-semibold tracking-tight text-foreground">
+          qa<span className="text-terminal">.</span>repl
         </Link>
-        <div className="flex items-center gap-1 font-mono text-sm">
+        <div className="hidden items-center gap-1 md:flex">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              className="rounded px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              activeProps={{ className: "rounded px-2.5 py-1.5 bg-accent text-terminal" }}
+              className="rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              activeProps={{
+                className:
+                  "rounded-full px-3 py-1.5 text-foreground bg-accent",
+              }}
             >
               {l.label}
             </Link>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2 font-mono text-sm">
+        <div className="ml-auto flex items-center gap-2">
           {session ? (
             <>
               <Link
                 to="/history"
-                className="rounded px-2.5 py-1.5 text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "rounded px-2.5 py-1.5 text-terminal" }}
+                className="hidden rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+                activeProps={{
+                  className:
+                    "hidden sm:inline-flex rounded-full px-3 py-1.5 text-foreground bg-accent",
+                }}
               >
-                history
+                History
               </Link>
               <button
                 onClick={async () => {
                   await supabase.auth.signOut();
                   navigate({ to: "/" });
                 }}
-                className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-muted-foreground hover:text-destructive"
+                className="rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground"
               >
-                <LogOut className="h-3.5 w-3.5" />
-                logout
+                Sign out
               </button>
             </>
           ) : (
             <Link
               to="/auth"
-              className="rounded border border-terminal/40 bg-terminal/10 px-3 py-1.5 text-terminal hover:bg-terminal/20"
+              className="rounded-full bg-foreground px-3.5 py-1.5 text-background transition-opacity hover:opacity-90"
             >
-              sign in
+              Sign in
             </Link>
           )}
         </div>
