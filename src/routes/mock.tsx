@@ -126,7 +126,7 @@ function MockPage() {
                     <div className="mb-1 font-mono text-[10px] uppercase text-muted-foreground">
                       {m.role === "user" ? "you" : "interviewer"}
                     </div>
-                    <div className="prose prose-sm prose-invert max-w-none prose-pre:bg-card prose-pre:border prose-pre:border-border prose-code:text-terminal">
+                    <div className="prose prose-sm max-w-none prose-pre:bg-card prose-pre:border prose-pre:border-border prose-code:text-terminal">
                       <ReactMarkdown>{text}</ReactMarkdown>
                     </div>
                   </div>

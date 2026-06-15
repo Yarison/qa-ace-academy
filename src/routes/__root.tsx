@@ -89,7 +89,7 @@ function RootComponent() {
         <Nav />
         <Outlet />
       </div>
-      <Toaster theme="dark" />
+      <Toaster />
     </QueryClientProvider>
   );
 }
