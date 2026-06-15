@@ -35,6 +35,11 @@ function MockPage() {
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: () => ({ topic: TOPICS.find((t) => t.id === topic)?.label ?? topic }),
+      headers: async () => {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
     }),
   });
 
