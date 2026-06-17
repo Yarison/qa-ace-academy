@@ -10,11 +10,11 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/ready")({
   head: () => ({
     meta: [
-      { title: "Study Schedule — qa.repl" },
+      { title: "Ready? — qa.repl" },
       { name: "description", content: "Pick your interview date and follow a daily study plan." },
     ],
   }),
-  component: Schedule,
+  component: Ready,
 });
 
 type Plan = {
