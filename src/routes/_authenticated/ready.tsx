@@ -260,7 +260,57 @@ function Ready() {
           </div>
         </div>
 
-        <ol className="space-y-3">
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold tracking-tight text-muted-foreground">Daily plan</h2>
+            <Button variant="outline" size="sm" onClick={() => setShowCustomize((s) => !s)}>
+              <Settings2 className="h-3.5 w-3.5" /> Customize rotation
+            </Button>
+          </div>
+          {showCustomize && (
+            <div className="surface mb-4 rounded-xl border border-border p-4">
+              <p className="text-xs text-muted-foreground">
+                Toggle topics on/off and reorder them. Changes update your plan instantly. (Final 2 days are always review + mock.)
+              </p>
+              <ul className="mt-3 space-y-2">
+                {DEFAULT_ORDER.map((id) => {
+                  const item = ROTATION.find((r) => r.id === id)!;
+                  const enabled = order.includes(id);
+                  const idx = order.indexOf(id);
+                  return (
+                    <li key={id} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => toggleTopic(id)}
+                        className="h-4 w-4 accent-[hsl(var(--terminal))]"
+                        aria-label={`Include ${item.topic}`}
+                      />
+                      <span className={`flex-1 text-sm ${enabled ? "text-foreground" : "text-muted-foreground line-through"}`}>
+                        {item.topic}
+                      </span>
+                      {enabled && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">#{idx + 1}</span>
+                          <Button variant="ghost" size="sm" disabled={idx <= 0} onClick={() => moveTopic(id, -1)} aria-label="Move up">
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled={idx === order.length - 1} onClick={() => moveTopic(id, 1)} aria-label="Move down">
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-3 flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => updateOrder(DEFAULT_ORDER)}>Reset to default</Button>
+              </div>
+            </div>
+          )}
+
+          <ol className="space-y-3">
           {schedule.map((d, idx) => {
             const isToday = d.iso === todayIso;
             const isPast = d.date < parseISODate(todayIso);
