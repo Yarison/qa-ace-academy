@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 
 const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
@@ -64,6 +65,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/practice': typeof PracticeRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/mock': typeof MockRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice': typeof PracticeIndexRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/practice': typeof PracticeRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/sql-playground'
     | '/history'
+    | '/schedule'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/mock'
     | '/sql-playground'
     | '/history'
+    | '/schedule'
     | '/api/chat'
     | '/practice/$category'
     | '/practice'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/sql-playground'
     | '/_authenticated/history'
+    | '/_authenticated/schedule'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
@@ -215,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/schedule': {
+      id: '/_authenticated/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -227,10 +246,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
