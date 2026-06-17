@@ -24,11 +24,28 @@ type Plan = {
 
 // Rotating daily focus
 const ROTATION = [
-  { topic: "API testing", href: "/practice/api", tasks: ["Review 3 API questions", "Write one example request/response"] },
-  { topic: "SQL", href: "/practice/sql", tasks: ["Review 3 SQL questions", "Solve 1 query in the playground"] },
-  { topic: "Playwright", href: "/practice/playwright", tasks: ["Review 3 Playwright questions", "Sketch a locator strategy"] },
-  { topic: "Mock interview", href: "/mock", tasks: ["Run a 5-question mock", "Review feedback & note one gap"] },
-];
+  { id: "api", topic: "API testing", href: "/practice/api", tasks: ["Review 3 API questions", "Write one example request/response"] },
+  { id: "sql", topic: "SQL", href: "/practice/sql", tasks: ["Review 3 SQL questions", "Solve 1 query in the playground"] },
+  { id: "playwright", topic: "Playwright", href: "/practice/playwright", tasks: ["Review 3 Playwright questions", "Sketch a locator strategy"] },
+  { id: "mock", topic: "Mock interview", href: "/mock", tasks: ["Run a 5-question mock", "Review feedback & note one gap"] },
+] as const;
+
+type TopicId = (typeof ROTATION)[number]["id"];
+const DEFAULT_ORDER: TopicId[] = ["api", "sql", "playwright", "mock"];
+const ROTATION_STORAGE_KEY = "qa.repl.rotation.v1";
+
+function loadRotation(): TopicId[] {
+  if (typeof window === "undefined") return DEFAULT_ORDER;
+  try {
+    const raw = localStorage.getItem(ROTATION_STORAGE_KEY);
+    if (!raw) return DEFAULT_ORDER;
+    const parsed = JSON.parse(raw) as TopicId[];
+    const valid = parsed.filter((id) => (DEFAULT_ORDER as string[]).includes(id)) as TopicId[];
+    return valid.length ? valid : DEFAULT_ORDER;
+  } catch {
+    return DEFAULT_ORDER;
+  }
+}
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -42,30 +59,29 @@ function daysBetween(a: Date, b: Date) {
   return Math.round(ms / 86400000);
 }
 
-type Day = {
-  date: Date;
-  iso: string;
-  focus: (typeof ROTATION)[number];
-  isReview?: boolean;
-};
+type FocusItem = { id: string; topic: string; href: string; tasks: readonly string[] | string[] };
+type Day = { date: Date; iso: string; focus: FocusItem; isReview?: boolean };
 
-function buildSchedule(interview: Date): Day[] {
+function buildSchedule(interview: Date, order: TopicId[]): Day[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const total = daysBetween(today, interview);
   if (total <= 0) return [];
+  const rotation: FocusItem[] = (order.length ? order : DEFAULT_ORDER)
+    .map((id) => ROTATION.find((r) => r.id === id))
+    .filter((r): r is (typeof ROTATION)[number] => Boolean(r));
+  const mock = ROTATION.find((r) => r.id === "mock")!;
   const days: Day[] = [];
   for (let i = 0; i < total; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     const daysLeft = total - i;
-    // Final 2 days: review + mock
-    const focus =
+    const focus: FocusItem =
       daysLeft <= 1
-        ? ROTATION[3]
+        ? mock
         : daysLeft === 2
-          ? { ...ROTATION[3], topic: "Final review", tasks: ["Skim weak topics", "Run a full mock interview"] }
-          : ROTATION[i % ROTATION.length];
+          ? { id: "review", topic: "Final review", href: mock.href, tasks: ["Skim weak topics", "Run a full mock interview"] }
+          : rotation[i % rotation.length] ?? mock;
     days.push({ date, iso: toISODate(date), focus, isReview: daysLeft <= 2 });
   }
   return days;
