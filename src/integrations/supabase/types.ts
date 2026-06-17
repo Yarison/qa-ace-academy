@@ -92,6 +92,33 @@ export type Database = {
         }
         Relationships: []
       }
+      study_plans: {
+        Row: {
+          completed: Json
+          created_at: string
+          id: string
+          interview_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: Json
+          created_at?: string
+          id?: string
+          interview_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: Json
+          created_at?: string
+          id?: string
+          interview_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
