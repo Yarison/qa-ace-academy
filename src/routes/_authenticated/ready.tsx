@@ -92,8 +92,11 @@ function Ready() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [picking, setPicking] = useState<Date | undefined>();
   const [saving, setSaving] = useState(false);
+  const [order, setOrder] = useState<TopicId[]>(DEFAULT_ORDER);
+  const [showCustomize, setShowCustomize] = useState(false);
 
   useEffect(() => {
+    setOrder(loadRotation());
     (async () => {
       const { data } = await supabase
         .from("study_plans")
@@ -104,7 +107,24 @@ function Ready() {
     })();
   }, []);
 
-  const schedule = useMemo(() => (plan ? buildSchedule(parseISODate(plan.interview_date)) : []), [plan]);
+  function updateOrder(next: TopicId[]) {
+    const safe = next.length ? next : DEFAULT_ORDER;
+    setOrder(safe);
+    try { localStorage.setItem(ROTATION_STORAGE_KEY, JSON.stringify(safe)); } catch {}
+  }
+  function toggleTopic(id: TopicId) {
+    updateOrder(order.includes(id) ? order.filter((x) => x !== id) : [...order, id]);
+  }
+  function moveTopic(id: TopicId, dir: -1 | 1) {
+    const i = order.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[i], next[j]] = [next[j], next[i]];
+    updateOrder(next);
+  }
+
+  const schedule = useMemo(() => (plan ? buildSchedule(parseISODate(plan.interview_date), order) : []), [plan, order]);
   const completedSet = useMemo(() => new Set(plan?.completed ?? []), [plan]);
   const totalTasks = schedule.reduce((n, d) => n + d.focus.tasks.length, 0);
   const doneTasks = schedule.reduce(
