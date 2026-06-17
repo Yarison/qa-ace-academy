@@ -356,7 +356,9 @@ function Ready() {
             );
           })}
         </ol>
+        </div>
       </div>
+
     </main>
   );
 }
