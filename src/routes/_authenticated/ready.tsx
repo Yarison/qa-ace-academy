@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/schedule")({
+export const Route = createFileRoute("/_authenticated/ready")({
   head: () => ({
     meta: [
       { title: "Study Schedule — qa.repl" },
