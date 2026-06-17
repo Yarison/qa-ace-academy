@@ -18,7 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
+import { Route as AuthenticatedReadyRouteImport } from './routes/_authenticated/ready'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 
 const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
@@ -65,9 +65,9 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
+const AuthenticatedReadyRoute = AuthenticatedReadyRouteImport.update({
+  id: '/ready',
+  path: '/ready',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
@@ -83,7 +83,7 @@ export interface FileRoutesByFullPath {
   '/practice': typeof PracticeRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
-  '/schedule': typeof AuthenticatedScheduleRoute
+  '/ready': typeof AuthenticatedReadyRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
@@ -94,7 +94,7 @@ export interface FileRoutesByTo {
   '/mock': typeof MockRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
-  '/schedule': typeof AuthenticatedScheduleRoute
+  '/ready': typeof AuthenticatedReadyRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice': typeof PracticeIndexRoute
@@ -108,7 +108,7 @@ export interface FileRoutesById {
   '/practice': typeof PracticeRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
-  '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
+  '/_authenticated/ready': typeof AuthenticatedReadyRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
@@ -122,7 +122,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/sql-playground'
     | '/history'
-    | '/schedule'
+    | '/ready'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
@@ -133,7 +133,7 @@ export interface FileRouteTypes {
     | '/mock'
     | '/sql-playground'
     | '/history'
-    | '/schedule'
+    | '/ready'
     | '/api/chat'
     | '/practice/$category'
     | '/practice'
@@ -146,7 +146,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/sql-playground'
     | '/_authenticated/history'
-    | '/_authenticated/schedule'
+    | '/_authenticated/ready'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
@@ -227,11 +227,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/schedule': {
-      id: '/_authenticated/schedule'
-      path: '/schedule'
-      fullPath: '/schedule'
-      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
+    '/_authenticated/ready': {
+      id: '/_authenticated/ready'
+      path: '/ready'
+      fullPath: '/ready'
+      preLoaderRoute: typeof AuthenticatedReadyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/history': {
@@ -246,12 +246,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
-  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
+  AuthenticatedReadyRoute: typeof AuthenticatedReadyRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
-  AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
+  AuthenticatedReadyRoute: AuthenticatedReadyRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

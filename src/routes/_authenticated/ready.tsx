@@ -7,14 +7,14 @@ import { Progress } from "@/components/ui/progress";
 import { CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/schedule")({
+export const Route = createFileRoute("/_authenticated/ready")({
   head: () => ({
     meta: [
-      { title: "Study Schedule — qa.repl" },
+      { title: "Ready? — qa.repl" },
       { name: "description", content: "Pick your interview date and follow a daily study plan." },
     ],
   }),
-  component: Schedule,
+  component: Ready,
 });
 
 type Plan = {
@@ -71,7 +71,7 @@ function buildSchedule(interview: Date): Day[] {
   return days;
 }
 
-function Schedule() {
+function Ready() {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [picking, setPicking] = useState<Date | undefined>();
@@ -142,10 +142,10 @@ function Schedule() {
     tomorrow.setHours(0, 0, 0, 0);
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="eyebrow inline-flex items-center gap-2"><Sparkles className="h-3 w-3 text-terminal" /> Study schedule</p>
-        <h1 className="display-1 mt-4">When is your interview?</h1>
+        <p className="eyebrow inline-flex items-center gap-2"><Sparkles className="h-3 w-3 text-terminal" /> Interview countdown</p>
+        <h1 className="display-1 mt-4">When's the big day?</h1>
         <p className="mt-4 max-w-xl text-muted-foreground">
-          Pick a date and we'll build a day-by-day plan covering API, SQL, Playwright, and mock interviews up until the big day.
+          Tell us your interview date and we'll build a daily battle plan — API, SQL, Playwright, and mock interviews until you're unstoppable.
         </p>
         <div className="surface mt-10 inline-flex flex-col items-center gap-4 rounded-2xl border border-border p-6">
           <Calendar
@@ -160,7 +160,7 @@ function Schedule() {
             onClick={() => picking && savePlan(picking)}
             className="w-full"
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Generate my schedule"}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Build my battle plan"}
           </Button>
         </div>
       </main>
@@ -179,7 +179,7 @@ function Schedule() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow inline-flex items-center gap-2"><CalendarIcon className="h-3 w-3 text-terminal" /> Study schedule</p>
+          <p className="eyebrow inline-flex items-center gap-2"><CalendarIcon className="h-3 w-3 text-terminal" /> Interview countdown</p>
           <h1 className="display-2 mt-2">
             {daysLeft > 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} until interview` : "Interview day"}
           </h1>

@@ -7,7 +7,7 @@ const links = [
   { to: "/practice", label: "Practice" },
   { to: "/sql-playground", label: "SQL Playground" },
   { to: "/mock", label: "Mock Interview" },
-  { to: "/schedule", label: "Schedule" },
+  { to: "/ready", label: "Ready?" },
 ] as const;
 
 export function Nav() {
