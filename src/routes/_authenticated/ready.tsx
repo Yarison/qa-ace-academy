@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/ready")({
@@ -24,11 +24,28 @@ type Plan = {
 
 // Rotating daily focus
 const ROTATION = [
-  { topic: "API testing", href: "/practice/api", tasks: ["Review 3 API questions", "Write one example request/response"] },
-  { topic: "SQL", href: "/practice/sql", tasks: ["Review 3 SQL questions", "Solve 1 query in the playground"] },
-  { topic: "Playwright", href: "/practice/playwright", tasks: ["Review 3 Playwright questions", "Sketch a locator strategy"] },
-  { topic: "Mock interview", href: "/mock", tasks: ["Run a 5-question mock", "Review feedback & note one gap"] },
-];
+  { id: "api", topic: "API testing", href: "/practice/api", tasks: ["Review 3 API questions", "Write one example request/response"] },
+  { id: "sql", topic: "SQL", href: "/practice/sql", tasks: ["Review 3 SQL questions", "Solve 1 query in the playground"] },
+  { id: "playwright", topic: "Playwright", href: "/practice/playwright", tasks: ["Review 3 Playwright questions", "Sketch a locator strategy"] },
+  { id: "mock", topic: "Mock interview", href: "/mock", tasks: ["Run a 5-question mock", "Review feedback & note one gap"] },
+] as const;
+
+type TopicId = (typeof ROTATION)[number]["id"];
+const DEFAULT_ORDER: TopicId[] = ["api", "sql", "playwright", "mock"];
+const ROTATION_STORAGE_KEY = "qa.repl.rotation.v1";
+
+function loadRotation(): TopicId[] {
+  if (typeof window === "undefined") return DEFAULT_ORDER;
+  try {
+    const raw = localStorage.getItem(ROTATION_STORAGE_KEY);
+    if (!raw) return DEFAULT_ORDER;
+    const parsed = JSON.parse(raw) as TopicId[];
+    const valid = parsed.filter((id) => (DEFAULT_ORDER as string[]).includes(id)) as TopicId[];
+    return valid.length ? valid : DEFAULT_ORDER;
+  } catch {
+    return DEFAULT_ORDER;
+  }
+}
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -42,30 +59,29 @@ function daysBetween(a: Date, b: Date) {
   return Math.round(ms / 86400000);
 }
 
-type Day = {
-  date: Date;
-  iso: string;
-  focus: (typeof ROTATION)[number];
-  isReview?: boolean;
-};
+type FocusItem = { id: string; topic: string; href: string; tasks: readonly string[] | string[] };
+type Day = { date: Date; iso: string; focus: FocusItem; isReview?: boolean };
 
-function buildSchedule(interview: Date): Day[] {
+function buildSchedule(interview: Date, order: TopicId[]): Day[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const total = daysBetween(today, interview);
   if (total <= 0) return [];
+  const rotation: FocusItem[] = (order.length ? order : DEFAULT_ORDER)
+    .map((id) => ROTATION.find((r) => r.id === id))
+    .filter((r): r is (typeof ROTATION)[number] => Boolean(r));
+  const mock = ROTATION.find((r) => r.id === "mock")!;
   const days: Day[] = [];
   for (let i = 0; i < total; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     const daysLeft = total - i;
-    // Final 2 days: review + mock
-    const focus =
+    const focus: FocusItem =
       daysLeft <= 1
-        ? ROTATION[3]
+        ? mock
         : daysLeft === 2
-          ? { ...ROTATION[3], topic: "Final review", tasks: ["Skim weak topics", "Run a full mock interview"] }
-          : ROTATION[i % ROTATION.length];
+          ? { id: "review", topic: "Final review", href: mock.href, tasks: ["Skim weak topics", "Run a full mock interview"] }
+          : rotation[i % rotation.length] ?? mock;
     days.push({ date, iso: toISODate(date), focus, isReview: daysLeft <= 2 });
   }
   return days;
@@ -76,8 +92,11 @@ function Ready() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [picking, setPicking] = useState<Date | undefined>();
   const [saving, setSaving] = useState(false);
+  const [order, setOrder] = useState<TopicId[]>(DEFAULT_ORDER);
+  const [showCustomize, setShowCustomize] = useState(false);
 
   useEffect(() => {
+    setOrder(loadRotation());
     (async () => {
       const { data } = await supabase
         .from("study_plans")
@@ -88,7 +107,24 @@ function Ready() {
     })();
   }, []);
 
-  const schedule = useMemo(() => (plan ? buildSchedule(parseISODate(plan.interview_date)) : []), [plan]);
+  function updateOrder(next: TopicId[]) {
+    const safe = next.length ? next : DEFAULT_ORDER;
+    setOrder(safe);
+    try { localStorage.setItem(ROTATION_STORAGE_KEY, JSON.stringify(safe)); } catch {}
+  }
+  function toggleTopic(id: TopicId) {
+    updateOrder(order.includes(id) ? order.filter((x) => x !== id) : [...order, id]);
+  }
+  function moveTopic(id: TopicId, dir: -1 | 1) {
+    const i = order.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[i], next[j]] = [next[j], next[i]];
+    updateOrder(next);
+  }
+
+  const schedule = useMemo(() => (plan ? buildSchedule(parseISODate(plan.interview_date), order) : []), [plan, order]);
   const completedSet = useMemo(() => new Set(plan?.completed ?? []), [plan]);
   const totalTasks = schedule.reduce((n, d) => n + d.focus.tasks.length, 0);
   const doneTasks = schedule.reduce(
@@ -224,7 +260,57 @@ function Ready() {
           </div>
         </div>
 
-        <ol className="space-y-3">
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold tracking-tight text-muted-foreground">Daily plan</h2>
+            <Button variant="outline" size="sm" onClick={() => setShowCustomize((s) => !s)}>
+              <Settings2 className="h-3.5 w-3.5" /> Customize rotation
+            </Button>
+          </div>
+          {showCustomize && (
+            <div className="surface mb-4 rounded-xl border border-border p-4">
+              <p className="text-xs text-muted-foreground">
+                Toggle topics on/off and reorder them. Changes update your plan instantly. (Final 2 days are always review + mock.)
+              </p>
+              <ul className="mt-3 space-y-2">
+                {DEFAULT_ORDER.map((id) => {
+                  const item = ROTATION.find((r) => r.id === id)!;
+                  const enabled = order.includes(id);
+                  const idx = order.indexOf(id);
+                  return (
+                    <li key={id} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => toggleTopic(id)}
+                        className="h-4 w-4 accent-[hsl(var(--terminal))]"
+                        aria-label={`Include ${item.topic}`}
+                      />
+                      <span className={`flex-1 text-sm ${enabled ? "text-foreground" : "text-muted-foreground line-through"}`}>
+                        {item.topic}
+                      </span>
+                      {enabled && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">#{idx + 1}</span>
+                          <Button variant="ghost" size="sm" disabled={idx <= 0} onClick={() => moveTopic(id, -1)} aria-label="Move up">
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled={idx === order.length - 1} onClick={() => moveTopic(id, 1)} aria-label="Move down">
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-3 flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => updateOrder(DEFAULT_ORDER)}>Reset to default</Button>
+              </div>
+            </div>
+          )}
+
+          <ol className="space-y-3">
           {schedule.map((d, idx) => {
             const isToday = d.iso === todayIso;
             const isPast = d.date < parseISODate(todayIso);
@@ -270,7 +356,9 @@ function Ready() {
             );
           })}
         </ol>
+        </div>
       </div>
+
     </main>
   );
 }
