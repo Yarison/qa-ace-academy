@@ -1,8 +1,12 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { listQuestions } from "@/lib/questions.functions";
-import { useState } from "react";
-import { ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
+import { tailorQuestions } from "@/lib/tailor.functions";
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronRight, ArrowLeft, Loader2, Sparkles, RotateCcw } from "lucide-react";
+import { JobDescriptionPanel, loadJobDescription } from "@/components/JobDescription";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const VALID = ["api", "sql", "playwright"] as const;
 type Cat = (typeof VALID)[number];
