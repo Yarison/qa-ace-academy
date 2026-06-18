@@ -240,6 +240,8 @@ function Ready() {
         <Progress value={pct} className="mt-2" />
       </div>
 
+      <JobDescriptionPanel className="mt-6" />
+
       <div className="mt-10 grid gap-8 lg:grid-cols-[auto_1fr]">
         <div className="surface rounded-2xl border border-border p-4">
           <Calendar
