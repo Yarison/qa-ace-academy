@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowDown, ArrowUp, CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { JobDescriptionPanel } from "@/components/JobDescription";
 
 const PLAN_STORAGE_KEY = "qa.repl.plan.v1";
 
