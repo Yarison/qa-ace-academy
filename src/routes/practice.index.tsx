@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Code2, Database, PlayCircle } from "lucide-react";
+import { JobDescriptionPanel } from "@/components/JobDescription";
 
 export const Route = createFileRoute("/practice/")({
   head: () => ({
