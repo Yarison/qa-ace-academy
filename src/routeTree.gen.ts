@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
+import { Route as ReadyRouteImport } from './routes/ready'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as MockRouteImport } from './routes/mock'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -18,12 +19,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as AuthenticatedReadyRouteImport } from './routes/_authenticated/ready'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 
 const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
   id: '/sql-playground',
   path: '/sql-playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReadyRoute = ReadyRouteImport.update({
+  id: '/ready',
+  path: '/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeRoute = PracticeRouteImport.update({
@@ -65,11 +70,6 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedReadyRoute = AuthenticatedReadyRouteImport.update({
-  id: '/ready',
-  path: '/ready',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -81,9 +81,9 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
+  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
-  '/ready': typeof AuthenticatedReadyRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
@@ -92,9 +92,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
+  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
-  '/ready': typeof AuthenticatedReadyRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice': typeof PracticeIndexRoute
@@ -106,9 +106,9 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
+  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
-  '/_authenticated/ready': typeof AuthenticatedReadyRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
@@ -120,9 +120,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mock'
     | '/practice'
+    | '/ready'
     | '/sql-playground'
     | '/history'
-    | '/ready'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
@@ -131,9 +131,9 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/mock'
+    | '/ready'
     | '/sql-playground'
     | '/history'
-    | '/ready'
     | '/api/chat'
     | '/practice/$category'
     | '/practice'
@@ -144,9 +144,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mock'
     | '/practice'
+    | '/ready'
     | '/sql-playground'
     | '/_authenticated/history'
-    | '/_authenticated/ready'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
@@ -158,6 +158,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
+  ReadyRoute: typeof ReadyRoute
   SqlPlaygroundRoute: typeof SqlPlaygroundRoute
   ApiChatRoute: typeof ApiChatRoute
 }
@@ -169,6 +170,13 @@ declare module '@tanstack/react-router' {
       path: '/sql-playground'
       fullPath: '/sql-playground'
       preLoaderRoute: typeof SqlPlaygroundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ready': {
+      id: '/ready'
+      path: '/ready'
+      fullPath: '/ready'
+      preLoaderRoute: typeof ReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice': {
@@ -227,13 +235,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/ready': {
-      id: '/_authenticated/ready'
-      path: '/ready'
-      fullPath: '/ready'
-      preLoaderRoute: typeof AuthenticatedReadyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -246,12 +247,10 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
-  AuthenticatedReadyRoute: typeof AuthenticatedReadyRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
-  AuthenticatedReadyRoute: AuthenticatedReadyRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -277,19 +276,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
+  ReadyRoute: ReadyRoute,
   SqlPlaygroundRoute: SqlPlaygroundRoute,
   ApiChatRoute: ApiChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
