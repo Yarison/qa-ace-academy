@@ -186,6 +186,7 @@ function Ready() {
         <p className="mt-4 max-w-xl text-muted-foreground">
           Tell us your interview date and we'll build a daily battle plan — API, SQL, Playwright, and mock interviews until you're unstoppable.
         </p>
+        <JobDescriptionPanel className="mt-8" />
         <div className="surface mt-10 inline-flex flex-col items-center gap-4 rounded-2xl border border-border p-6">
           <Calendar
             mode="single"
