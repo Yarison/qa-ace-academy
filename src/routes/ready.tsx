@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowDown, ArrowUp, CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/ready")({
+export const Route = createFileRoute("/ready")({
   head: () => ({
     meta: [
       { title: "Ready? — qa.repl" },
