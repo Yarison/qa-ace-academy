@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowDown, ArrowUp, CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { JobDescriptionPanel } from "@/components/JobDescription";
 
 const PLAN_STORAGE_KEY = "qa.repl.plan.v1";
 
@@ -185,6 +186,7 @@ function Ready() {
         <p className="mt-4 max-w-xl text-muted-foreground">
           Tell us your interview date and we'll build a daily battle plan — API, SQL, Playwright, and mock interviews until you're unstoppable.
         </p>
+        <JobDescriptionPanel className="mt-8" />
         <div className="surface mt-10 inline-flex flex-col items-center gap-4 rounded-2xl border border-border p-6">
           <Calendar
             mode="single"
@@ -237,6 +239,8 @@ function Ready() {
         </div>
         <Progress value={pct} className="mt-2" />
       </div>
+
+      <JobDescriptionPanel className="mt-6" />
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[auto_1fr]">
         <div className="surface rounded-2xl border border-border p-4">

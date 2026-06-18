@@ -46,7 +46,10 @@ function MockPage() {
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      body: () => ({ topic: TOPICS.find((t) => t.id === topic)?.label ?? topic }),
+      body: () => ({
+        topic: TOPICS.find((t) => t.id === topic)?.label ?? topic,
+        jobDescription: (typeof window !== "undefined" ? localStorage.getItem("qa.repl.jd.v1") : null) ?? undefined,
+      }),
       headers: (): Record<string, string> => {
         const token = tokenRef.current;
         return token ? { Authorization: `Bearer ${token}` } : {};
