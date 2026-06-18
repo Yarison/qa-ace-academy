@@ -22,6 +22,7 @@ function PracticeIndex() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
       <h1 className="font-mono text-2xl font-bold prompt">ls ./tracks</h1>
+      <JobDescriptionPanel className="mt-6" />
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tracks.map((t) => (
           <Link key={t.to} to={t.to} className="surface rounded-lg border border-border p-6 hover:border-terminal/40 hover:-translate-y-0.5 transition">
