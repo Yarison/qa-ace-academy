@@ -46,6 +46,40 @@ function CategoryPage() {
   const { category } = Route.useParams();
   const { data } = useSuspenseQuery(qOpts(category));
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [jd, setJd] = useState("");
+  const [tailored, setTailored] = useState<Record<string, string>>({});
+  const [tailoring, setTailoring] = useState(false);
+
+  useEffect(() => {
+    setJd(loadJobDescription());
+  }, []);
+
+  async function runTailor() {
+    if (!jd.trim()) {
+      toast.error("Add a job description first");
+      return;
+    }
+    setTailoring(true);
+    try {
+      const items = await tailorQuestions({
+        data: {
+          jobDescription: jd,
+          category,
+          questions: data.map((q) => ({ id: q.id, question: q.question })),
+        },
+      });
+      const map: Record<string, string> = {};
+      for (const it of items) map[it.id] = it.tailored;
+      setTailored(map);
+      toast.success("Questions tailored to your JD");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to tailor questions");
+    } finally {
+      setTailoring(false);
+    }
+  }
+
+  const hasTailored = Object.keys(tailored).length > 0;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
@@ -55,9 +89,26 @@ function CategoryPage() {
       <h1 className="mt-4 font-mono text-2xl font-bold prompt">cat ./{category}.md</h1>
       <p className="mt-2 text-sm text-muted-foreground">{data.length} questions · click any to reveal the answer.</p>
 
+      <JobDescriptionPanel className="mt-6" onChange={(v) => { setJd(v); setTailored({}); }} />
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={runTailor} disabled={tailoring || !jd.trim()}>
+          {tailoring ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {hasTailored ? "Re-tailor questions" : "Tailor questions to JD"}
+        </Button>
+        {hasTailored && (
+          <Button size="sm" variant="ghost" onClick={() => setTailored({})}>
+            <RotateCcw className="h-3.5 w-3.5" /> Show originals
+          </Button>
+        )}
+        {!jd.trim() && <span className="text-xs text-muted-foreground">Paste a JD above to enable AI tailoring.</span>}
+      </div>
+
       <ul className="mt-8 space-y-3">
         {data.map((q) => {
           const isOpen = !!open[q.id];
+          const display = tailored[q.id] ?? q.question;
+          const isTailored = !!tailored[q.id];
           return (
             <li key={q.id} className="surface overflow-hidden rounded-lg border border-border">
               <button
@@ -68,11 +119,19 @@ function CategoryPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${diffColor[q.difficulty]}`}>{q.difficulty}</span>
+                    {isTailored && (
+                      <span className="inline-flex items-center gap-1 rounded border border-terminal/40 bg-terminal/10 px-1.5 py-0.5 font-mono text-[10px] uppercase text-terminal">
+                        <Sparkles className="h-2.5 w-2.5" /> tailored
+                      </span>
+                    )}
                     {q.tags.slice(0, 3).map((t) => (
                       <span key={t} className="font-mono text-[10px] text-muted-foreground">#{t}</span>
                     ))}
                   </div>
-                  <p className="mt-2 text-foreground">{q.question}</p>
+                  <p className="mt-2 text-foreground">{display}</p>
+                  {isTailored && (
+                    <p className="mt-1 text-xs text-muted-foreground">Original: {q.question}</p>
+                  )}
                 </div>
               </button>
               {isOpen && (
