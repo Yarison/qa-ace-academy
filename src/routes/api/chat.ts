@@ -58,13 +58,16 @@ export const Route = createFileRoute("/api/chat")({
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
-        const body = (await request.json()) as { messages: UIMessage[]; topic?: string };
+        const body = (await request.json()) as { messages: UIMessage[]; topic?: string; jobDescription?: string };
         const topic = ALLOWED_TOPICS.includes(body.topic ?? "") ? body.topic! : ALLOWED_TOPICS[0];
+        const jd = typeof body.jobDescription === "string" && body.jobDescription.trim().length >= 20
+          ? body.jobDescription.trim()
+          : undefined;
 
         const gateway = createLovableAiGatewayProvider(key);
         const result = streamText({
           model: gateway("google/gemini-3-flash-preview"),
-          system: SYSTEM(topic),
+          system: SYSTEM(topic, jd),
           messages: await convertToModelMessages(body.messages),
         });
         return result.toUIMessageStreamResponse();
