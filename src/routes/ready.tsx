@@ -98,15 +98,22 @@ function Ready() {
 
   useEffect(() => {
     setOrder(loadRotation());
-    (async () => {
-      const { data } = await supabase
-        .from("study_plans")
-        .select("interview_date, completed")
-        .maybeSingle();
-      if (data) setPlan({ interview_date: data.interview_date, completed: (data.completed as string[]) ?? [] });
-      setLoading(false);
-    })();
+    try {
+      const raw = localStorage.getItem(PLAN_STORAGE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as Plan;
+        if (p?.interview_date) setPlan({ interview_date: p.interview_date, completed: p.completed ?? [] });
+      }
+    } catch {}
+    setLoading(false);
   }, []);
+
+  function persistPlan(p: Plan | null) {
+    try {
+      if (p) localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(p));
+      else localStorage.removeItem(PLAN_STORAGE_KEY);
+    } catch {}
+  }
 
   function updateOrder(next: TopicId[]) {
     const safe = next.length ? next : DEFAULT_ORDER;
@@ -134,39 +141,33 @@ function Ready() {
   );
   const pct = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-  async function savePlan(date: Date) {
+  function savePlan(date: Date) {
     setSaving(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
     const iso = toISODate(date);
-    const { error } = await supabase
-      .from("study_plans")
-      .upsert({ user_id: u.user.id, interview_date: iso, completed: [], updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    const next: Plan = { interview_date: iso, completed: [] };
+    setPlan(next);
+    persistPlan(next);
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    setPlan({ interview_date: iso, completed: [] });
     toast.success("Schedule created");
   }
 
-  async function toggle(key: string) {
+  function toggle(key: string) {
     if (!plan) return;
     const next = completedSet.has(key)
       ? plan.completed.filter((k) => k !== key)
       : [...plan.completed, key];
-    setPlan({ ...plan, completed: next });
-    const { error } = await supabase
-      .from("study_plans")
-      .update({ completed: next, updated_at: new Date().toISOString() })
-      .eq("interview_date", plan.interview_date);
-    if (error) toast.error(error.message);
+    const updated = { ...plan, completed: next };
+    setPlan(updated);
+    persistPlan(updated);
   }
 
-  async function reset() {
+  function reset() {
     if (!confirm("Clear your current study plan?")) return;
-    await supabase.from("study_plans").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     setPlan(null);
+    persistPlan(null);
     setPicking(undefined);
   }
+
 
   if (loading) {
     return <div className="p-10 text-center"><Loader2 className="inline h-4 w-4 animate-spin text-terminal" /></div>;
