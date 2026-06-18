@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowDown, ArrowUp, CalendarIcon, CheckCircle2, Circle, Loader2, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+
+const PLAN_STORAGE_KEY = "qa.repl.plan.v1";
 
 export const Route = createFileRoute("/ready")({
   head: () => ({
