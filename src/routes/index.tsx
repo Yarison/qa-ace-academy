@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-const steps = [
+const steps: readonly { n: string; icon: typeof FileText; title: string; body: string; optional?: boolean }[] = [
   {
     n: "01",
     icon: FileText,
@@ -31,7 +31,7 @@ const steps = [
     title: "Follow your calendar",
     body: "Pick your interview date. We build a day-by-day plan tailored to your gaps and the JD.",
   },
-] as const;
+];
 
 const tools = [
   { to: "/practice/api", icon: Code2, name: "API testing" },

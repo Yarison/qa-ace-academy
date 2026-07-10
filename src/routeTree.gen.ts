@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
-import { Route as ReadyRouteImport } from './routes/ready'
 import { Route as PrepRouteImport } from './routes/prep'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as MockRouteImport } from './routes/mock'
@@ -29,11 +28,6 @@ import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticate
 const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
   id: '/sql-playground',
   path: '/sql-playground',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReadyRoute = ReadyRouteImport.update({
-  id: '/ready',
-  path: '/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrepRoute = PrepRouteImport.update({
@@ -112,7 +106,6 @@ export interface FileRoutesByFullPath {
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
-  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
@@ -127,7 +120,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
-  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
@@ -146,7 +138,6 @@ export interface FileRoutesById {
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
-  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
@@ -165,7 +156,6 @@ export interface FileRouteTypes {
     | '/mock'
     | '/practice'
     | '/prep'
-    | '/ready'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
@@ -180,7 +170,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/mock'
-    | '/ready'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
@@ -198,7 +187,6 @@ export interface FileRouteTypes {
     | '/mock'
     | '/practice'
     | '/prep'
-    | '/ready'
     | '/sql-playground'
     | '/_authenticated/history'
     | '/api/chat'
@@ -217,7 +205,6 @@ export interface RootRouteChildren {
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
   PrepRoute: typeof PrepRouteWithChildren
-  ReadyRoute: typeof ReadyRoute
   SqlPlaygroundRoute: typeof SqlPlaygroundRoute
   ApiChatRoute: typeof ApiChatRoute
 }
@@ -229,13 +216,6 @@ declare module '@tanstack/react-router' {
       path: '/sql-playground'
       fullPath: '/sql-playground'
       preLoaderRoute: typeof SqlPlaygroundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ready': {
-      id: '/ready'
-      path: '/ready'
-      fullPath: '/ready'
-      preLoaderRoute: typeof ReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prep': {
@@ -387,7 +367,6 @@ const rootRouteChildren: RootRouteChildren = {
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
   PrepRoute: PrepRouteWithChildren,
-  ReadyRoute: ReadyRoute,
   SqlPlaygroundRoute: SqlPlaygroundRoute,
   ApiChatRoute: ApiChatRoute,
 }
