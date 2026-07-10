@@ -10,13 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
-import { Route as ReadyRouteImport } from './routes/ready'
+import { Route as PrepRouteImport } from './routes/prep'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as MockRouteImport } from './routes/mock'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
+import { Route as PrepResumeRouteImport } from './routes/prep.resume'
+import { Route as PrepPlanRouteImport } from './routes/prep.plan'
+import { Route as PrepJdRouteImport } from './routes/prep.jd'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -26,9 +30,9 @@ const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
   path: '/sql-playground',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReadyRoute = ReadyRouteImport.update({
-  id: '/ready',
-  path: '/ready',
+const PrepRoute = PrepRouteImport.update({
+  id: '/prep',
+  path: '/prep',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeRoute = PracticeRouteImport.update({
@@ -55,10 +59,30 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrepIndexRoute = PrepIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PrepRoute,
+} as any)
 const PracticeIndexRoute = PracticeIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PracticeRoute,
+} as any)
+const PrepResumeRoute = PrepResumeRouteImport.update({
+  id: '/resume',
+  path: '/resume',
+  getParentRoute: () => PrepRoute,
+} as any)
+const PrepPlanRoute = PrepPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => PrepRoute,
+} as any)
+const PrepJdRoute = PrepJdRouteImport.update({
+  id: '/jd',
+  path: '/jd',
+  getParentRoute: () => PrepRoute,
 } as any)
 const PracticeCategoryRoute = PracticeCategoryRouteImport.update({
   id: '/$category',
@@ -81,23 +105,30 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
-  '/ready': typeof ReadyRoute
+  '/prep': typeof PrepRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
+  '/prep/jd': typeof PrepJdRoute
+  '/prep/plan': typeof PrepPlanRoute
+  '/prep/resume': typeof PrepResumeRoute
   '/practice/': typeof PracticeIndexRoute
+  '/prep/': typeof PrepIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
-  '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
+  '/prep/jd': typeof PrepJdRoute
+  '/prep/plan': typeof PrepPlanRoute
+  '/prep/resume': typeof PrepResumeRoute
   '/practice': typeof PracticeIndexRoute
+  '/prep': typeof PrepIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,12 +137,16 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
-  '/ready': typeof ReadyRoute
+  '/prep': typeof PrepRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
+  '/prep/jd': typeof PrepJdRoute
+  '/prep/plan': typeof PrepPlanRoute
+  '/prep/resume': typeof PrepResumeRoute
   '/practice/': typeof PracticeIndexRoute
+  '/prep/': typeof PrepIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,23 +155,30 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mock'
     | '/practice'
-    | '/ready'
+    | '/prep'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
     | '/practice/$category'
+    | '/prep/jd'
+    | '/prep/plan'
+    | '/prep/resume'
     | '/practice/'
+    | '/prep/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/mock'
-    | '/ready'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
     | '/practice/$category'
+    | '/prep/jd'
+    | '/prep/plan'
+    | '/prep/resume'
     | '/practice'
+    | '/prep'
   id:
     | '__root__'
     | '/'
@@ -144,12 +186,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mock'
     | '/practice'
-    | '/ready'
+    | '/prep'
     | '/sql-playground'
     | '/_authenticated/history'
     | '/api/chat'
     | '/practice/$category'
+    | '/prep/jd'
+    | '/prep/plan'
+    | '/prep/resume'
     | '/practice/'
+    | '/prep/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,7 +204,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
-  ReadyRoute: typeof ReadyRoute
+  PrepRoute: typeof PrepRouteWithChildren
   SqlPlaygroundRoute: typeof SqlPlaygroundRoute
   ApiChatRoute: typeof ApiChatRoute
 }
@@ -172,11 +218,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SqlPlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ready': {
-      id: '/ready'
-      path: '/ready'
-      fullPath: '/ready'
-      preLoaderRoute: typeof ReadyRouteImport
+    '/prep': {
+      id: '/prep'
+      path: '/prep'
+      fullPath: '/prep'
+      preLoaderRoute: typeof PrepRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice': {
@@ -214,12 +260,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prep/': {
+      id: '/prep/'
+      path: '/'
+      fullPath: '/prep/'
+      preLoaderRoute: typeof PrepIndexRouteImport
+      parentRoute: typeof PrepRoute
+    }
     '/practice/': {
       id: '/practice/'
       path: '/'
       fullPath: '/practice/'
       preLoaderRoute: typeof PracticeIndexRouteImport
       parentRoute: typeof PracticeRoute
+    }
+    '/prep/resume': {
+      id: '/prep/resume'
+      path: '/resume'
+      fullPath: '/prep/resume'
+      preLoaderRoute: typeof PrepResumeRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/prep/plan': {
+      id: '/prep/plan'
+      path: '/plan'
+      fullPath: '/prep/plan'
+      preLoaderRoute: typeof PrepPlanRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/prep/jd': {
+      id: '/prep/jd'
+      path: '/jd'
+      fullPath: '/prep/jd'
+      preLoaderRoute: typeof PrepJdRouteImport
+      parentRoute: typeof PrepRoute
     }
     '/practice/$category': {
       id: '/practice/$category'
@@ -270,26 +344,32 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
   PracticeRouteChildren,
 )
 
+interface PrepRouteChildren {
+  PrepJdRoute: typeof PrepJdRoute
+  PrepPlanRoute: typeof PrepPlanRoute
+  PrepResumeRoute: typeof PrepResumeRoute
+  PrepIndexRoute: typeof PrepIndexRoute
+}
+
+const PrepRouteChildren: PrepRouteChildren = {
+  PrepJdRoute: PrepJdRoute,
+  PrepPlanRoute: PrepPlanRoute,
+  PrepResumeRoute: PrepResumeRoute,
+  PrepIndexRoute: PrepIndexRoute,
+}
+
+const PrepRouteWithChildren = PrepRoute._addFileChildren(PrepRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
-  ReadyRoute: ReadyRoute,
+  PrepRoute: PrepRouteWithChildren,
   SqlPlaygroundRoute: SqlPlaygroundRoute,
   ApiChatRoute: ApiChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
