@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 
 const links = [
+  { to: "/prep/resume", label: "Prep" },
   { to: "/practice", label: "Practice" },
   { to: "/sql-playground", label: "SQL Playground" },
   { to: "/mock", label: "Mock Interview" },
-  { to: "/ready", label: "Ready?" },
 ] as const;
 
 export function Nav() {
