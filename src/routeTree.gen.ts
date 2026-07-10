@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
 import { Route as ReadyRouteImport } from './routes/ready'
+import { Route as PrepRouteImport } from './routes/prep'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as MockRouteImport } from './routes/mock'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -29,6 +31,11 @@ const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
 const ReadyRoute = ReadyRouteImport.update({
   id: '/ready',
   path: '/ready',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrepRoute = PrepRouteImport.update({
+  id: '/prep',
+  path: '/prep',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeRoute = PracticeRouteImport.update({
@@ -54,6 +61,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PrepIndexRoute = PrepIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PrepRoute,
 } as any)
 const PracticeIndexRoute = PracticeIndexRouteImport.update({
   id: '/',
@@ -81,12 +93,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
+  '/prep': typeof PrepRouteWithChildren
   '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
+  '/prep/': typeof PrepIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,6 +112,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice': typeof PracticeIndexRoute
+  '/prep': typeof PrepIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,12 +121,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
+  '/prep': typeof PrepRouteWithChildren
   '/ready': typeof ReadyRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/practice/': typeof PracticeIndexRoute
+  '/prep/': typeof PrepIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,12 +137,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mock'
     | '/practice'
+    | '/prep'
     | '/ready'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
+    | '/prep/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -137,6 +156,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/practice/$category'
     | '/practice'
+    | '/prep'
   id:
     | '__root__'
     | '/'
@@ -144,12 +164,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mock'
     | '/practice'
+    | '/prep'
     | '/ready'
     | '/sql-playground'
     | '/_authenticated/history'
     | '/api/chat'
     | '/practice/$category'
     | '/practice/'
+    | '/prep/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +180,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
+  PrepRoute: typeof PrepRouteWithChildren
   ReadyRoute: typeof ReadyRoute
   SqlPlaygroundRoute: typeof SqlPlaygroundRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -177,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/ready'
       fullPath: '/ready'
       preLoaderRoute: typeof ReadyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prep': {
+      id: '/prep'
+      path: '/prep'
+      fullPath: '/prep'
+      preLoaderRoute: typeof PrepRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice': {
@@ -213,6 +243,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/prep/': {
+      id: '/prep/'
+      path: '/'
+      fullPath: '/prep/'
+      preLoaderRoute: typeof PrepIndexRouteImport
+      parentRoute: typeof PrepRoute
     }
     '/practice/': {
       id: '/practice/'
@@ -270,12 +307,23 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
   PracticeRouteChildren,
 )
 
+interface PrepRouteChildren {
+  PrepIndexRoute: typeof PrepIndexRoute
+}
+
+const PrepRouteChildren: PrepRouteChildren = {
+  PrepIndexRoute: PrepIndexRoute,
+}
+
+const PrepRouteWithChildren = PrepRoute._addFileChildren(PrepRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
+  PrepRoute: PrepRouteWithChildren,
   ReadyRoute: ReadyRoute,
   SqlPlaygroundRoute: SqlPlaygroundRoute,
   ApiChatRoute: ApiChatRoute,
