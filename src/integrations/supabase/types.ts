@@ -44,6 +44,51 @@ export type Database = {
         }
         Relationships: []
       }
+      prep_sessions: {
+        Row: {
+          completed: Json
+          created_at: string
+          id: string
+          interview_date: string | null
+          jd_analysis: Json | null
+          job_description: string | null
+          plan: Json | null
+          resume_analysis: Json | null
+          resume_text: string | null
+          rotation: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: Json
+          created_at?: string
+          id?: string
+          interview_date?: string | null
+          jd_analysis?: Json | null
+          job_description?: string | null
+          plan?: Json | null
+          resume_analysis?: Json | null
+          resume_text?: string | null
+          rotation?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: Json
+          created_at?: string
+          id?: string
+          interview_date?: string | null
+          jd_analysis?: Json | null
+          job_description?: string | null
+          plan?: Json | null
+          resume_analysis?: Json | null
+          resume_text?: string | null
+          rotation?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
