@@ -19,6 +19,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
+import { Route as PrepResumeRouteImport } from './routes/prep.resume'
+import { Route as PrepJdRouteImport } from './routes/prep.jd'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -72,6 +74,16 @@ const PracticeIndexRoute = PracticeIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PracticeRoute,
 } as any)
+const PrepResumeRoute = PrepResumeRouteImport.update({
+  id: '/resume',
+  path: '/resume',
+  getParentRoute: () => PrepRoute,
+} as any)
+const PrepJdRoute = PrepJdRouteImport.update({
+  id: '/jd',
+  path: '/jd',
+  getParentRoute: () => PrepRoute,
+} as any)
 const PracticeCategoryRoute = PracticeCategoryRouteImport.update({
   id: '/$category',
   path: '/$category',
@@ -99,6 +111,8 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
+  '/prep/jd': typeof PrepJdRoute
+  '/prep/resume': typeof PrepResumeRoute
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
 }
@@ -111,6 +125,8 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
+  '/prep/jd': typeof PrepJdRoute
+  '/prep/resume': typeof PrepResumeRoute
   '/practice': typeof PracticeIndexRoute
   '/prep': typeof PrepIndexRoute
 }
@@ -127,6 +143,8 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
+  '/prep/jd': typeof PrepJdRoute
+  '/prep/resume': typeof PrepResumeRoute
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
 }
@@ -143,6 +161,8 @@ export interface FileRouteTypes {
     | '/history'
     | '/api/chat'
     | '/practice/$category'
+    | '/prep/jd'
+    | '/prep/resume'
     | '/practice/'
     | '/prep/'
   fileRoutesByTo: FileRoutesByTo
@@ -155,6 +175,8 @@ export interface FileRouteTypes {
     | '/history'
     | '/api/chat'
     | '/practice/$category'
+    | '/prep/jd'
+    | '/prep/resume'
     | '/practice'
     | '/prep'
   id:
@@ -170,6 +192,8 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/api/chat'
     | '/practice/$category'
+    | '/prep/jd'
+    | '/prep/resume'
     | '/practice/'
     | '/prep/'
   fileRoutesById: FileRoutesById
@@ -258,6 +282,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PracticeIndexRouteImport
       parentRoute: typeof PracticeRoute
     }
+    '/prep/resume': {
+      id: '/prep/resume'
+      path: '/resume'
+      fullPath: '/prep/resume'
+      preLoaderRoute: typeof PrepResumeRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/prep/jd': {
+      id: '/prep/jd'
+      path: '/jd'
+      fullPath: '/prep/jd'
+      preLoaderRoute: typeof PrepJdRouteImport
+      parentRoute: typeof PrepRoute
+    }
     '/practice/$category': {
       id: '/practice/$category'
       path: '/$category'
@@ -308,10 +346,14 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
 )
 
 interface PrepRouteChildren {
+  PrepJdRoute: typeof PrepJdRoute
+  PrepResumeRoute: typeof PrepResumeRoute
   PrepIndexRoute: typeof PrepIndexRoute
 }
 
 const PrepRouteChildren: PrepRouteChildren = {
+  PrepJdRoute: PrepJdRoute,
+  PrepResumeRoute: PrepResumeRoute,
   PrepIndexRoute: PrepIndexRoute,
 }
 
