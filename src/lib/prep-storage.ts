@@ -9,20 +9,32 @@ export type ResumeAnalysis = {
 };
 
 export type JdAnalysis = {
-  missingSkills: string[];
+  technicalSkills: string[];
+  softSkills: string[];
+  toolsAndTechnologies: string[];
+  industryKnowledge: string[];
+  certifications: string[];
+  keywordsAndCompetencies: string[];
   likelyQuestions: string[];
-  topicsToReview: string[];
-  matchScore: number; // 0-100
+  matchScore: number | null; // null when no resume provided
   summary: string;
 };
 
-export type TopicId = "api" | "sql" | "playwright" | "mock" | "review";
+export type ExperienceLevel = "beginner" | "intermediate" | "experienced";
+
+export type Preferences = {
+  interviewDate: string | null; // ISO date
+  daysUntil: number | null; // alternative to date
+  hoursPerDay: number; // 1-12
+  experienceLevel: ExperienceLevel;
+};
 
 export type PlanDay = {
   date: string; // ISO date
-  topic: TopicId;
-  focus: string; // short description of what to study
-  drills: string[]; // 2-4 concrete actions
+  focusArea: string; // e.g. "Technical skills", "Behavioral", "Company research"
+  topics: string[];
+  activities: string[]; // concrete tasks
+  estimatedHours: number;
 };
 
 export type PrepState = {
@@ -30,7 +42,7 @@ export type PrepState = {
   resumeAnalysis: ResumeAnalysis | null;
   jobDescription: string;
   jdAnalysis: JdAnalysis | null;
-  interviewDate: string | null; // ISO date
+  preferences: Preferences;
   plan: PlanDay[];
   completed: string[]; // ISO dates marked done
 };
@@ -40,19 +52,29 @@ export const EMPTY_PREP: PrepState = {
   resumeAnalysis: null,
   jobDescription: "",
   jdAnalysis: null,
-  interviewDate: null,
+  preferences: {
+    interviewDate: null,
+    daysUntil: null,
+    hoursPerDay: 2,
+    experienceLevel: "intermediate",
+  },
   plan: [],
   completed: [],
 };
 
-const KEY = "qa.repl.prep.v1";
+const KEY = "ai.prep.v2";
 
 export function loadPrepLocal(): PrepState {
   if (typeof window === "undefined") return EMPTY_PREP;
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return EMPTY_PREP;
-    return { ...EMPTY_PREP, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...EMPTY_PREP,
+      ...parsed,
+      preferences: { ...EMPTY_PREP.preferences, ...(parsed.preferences ?? {}) },
+    };
   } catch {
     return EMPTY_PREP;
   }
@@ -87,4 +109,13 @@ export function addDays(iso: string, days: number): string {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function resolveDaysUntil(prefs: Preferences): number | null {
+  if (prefs.daysUntil && prefs.daysUntil >= 1) return Math.min(60, Math.floor(prefs.daysUntil));
+  if (prefs.interviewDate) {
+    const d = daysBetween(todayISO(), prefs.interviewDate);
+    if (d >= 1) return Math.min(60, d);
+  }
+  return null;
 }

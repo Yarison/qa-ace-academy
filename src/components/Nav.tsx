@@ -4,9 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 
 const links = [
-  { to: "/prep/resume", label: "Prep" },
+  { to: "/prep/jd", label: "Prep" },
   { to: "/practice", label: "Practice" },
-  { to: "/sql-playground", label: "SQL Playground" },
   { to: "/mock", label: "Mock Interview" },
 ] as const;
 
@@ -24,7 +23,7 @@ export function Nav() {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-12 max-w-6xl items-center gap-8 px-6 text-[13px]">
         <Link to="/" className="font-semibold tracking-tight text-foreground">
-          qa<span className="text-terminal">.</span>repl
+          ai<span className="text-terminal">.</span>coach
         </Link>
         <div className="hidden items-center gap-1 md:flex">
           {links.map((l) => (

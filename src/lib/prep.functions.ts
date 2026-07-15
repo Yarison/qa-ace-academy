@@ -8,7 +8,7 @@ import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 
 const ResumeInput = z.object({
   text: z.string().trim().min(50).max(20000).optional(),
-  pdfBase64: z.string().max(6_000_000).optional(), // ~4.5MB PDF
+  pdfBase64: z.string().max(6_000_000).optional(),
 }).refine((v) => v.text || v.pdfBase64, { message: "Provide text or PDF" });
 
 const ResumeSchema = z.object({
@@ -24,7 +24,6 @@ export const analyzeResume = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    // If a PDF is supplied, call the gateway directly to use Gemini's file support.
     let resumeText = data.text ?? "";
     if (data.pdfBase64 && !resumeText) {
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -57,10 +56,10 @@ export const analyzeResume = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(key);
     const { output } = await generateText({
       model: gateway("google/gemini-3-flash-preview"),
-      system: `You are a QA hiring manager analyzing a resume. Be specific and honest.
-- yearsExperience: estimate years of professional QA/software testing experience (integer, best guess).
-- skills: concrete technical skills present (tools, languages, frameworks). Max 20.
-- weakAreas: gaps a QA interviewer would probe (e.g. "no API automation experience", "limited SQL", "no CI/CD"). Max 8. Concrete phrases, not generic.
+      system: `You are an experienced hiring manager analyzing a resume for any profession. Be specific and honest.
+- yearsExperience: estimate years of professional experience (integer, best guess).
+- skills: concrete skills present — technical, tools, soft skills, methodologies, languages. Max 20.
+- weakAreas: gaps an interviewer would probe. Concrete phrases specific to this candidate's field. Max 8.
 - summary: 2-3 sentence candidate summary.`,
       prompt: `Resume:\n"""${resumeText.slice(0, 16000)}"""`,
       output: Output.object({ schema: ResumeSchema }),
@@ -69,18 +68,22 @@ export const analyzeResume = createServerFn({ method: "POST" })
     return { analysis: output, resumeText };
   });
 
-// ---------- JD comparison ----------
+// ---------- JD analysis (universal, any profession) ----------
 
 const JdInput = z.object({
-  resumeAnalysis: ResumeSchema,
+  resumeAnalysis: ResumeSchema.nullable(),
   jobDescription: z.string().trim().min(30).max(10000),
 });
 
 const JdSchema = z.object({
-  missingSkills: z.array(z.string()).max(20),
+  technicalSkills: z.array(z.string()).max(20),
+  softSkills: z.array(z.string()).max(15),
+  toolsAndTechnologies: z.array(z.string()).max(20),
+  industryKnowledge: z.array(z.string()).max(15),
+  certifications: z.array(z.string()).max(10),
+  keywordsAndCompetencies: z.array(z.string()).max(20),
   likelyQuestions: z.array(z.string()).max(15),
-  topicsToReview: z.array(z.string()).max(15),
-  matchScore: z.number().min(0).max(100),
+  matchScore: z.number().min(0).max(100).nullable(),
   summary: z.string().max(600),
 });
 
@@ -93,18 +96,91 @@ export const analyzeJd = createServerFn({ method: "POST" })
 
     const { output } = await generateText({
       model: gateway("google/gemini-3-flash-preview"),
-      system: `You are a QA hiring manager. Compare a candidate against a job description.
+      system: `You are an expert interview coach analyzing a job description for ANY profession (engineering, marketing, finance, healthcare, design, sales, operations, etc.). Extract structured requirements.
+
 Return:
-- missingSkills: skills the JD requires that the candidate lacks. Concrete, JD-specific. Max 10.
-- likelyQuestions: 8-12 questions this candidate should expect for THIS role. Reference JD tools/domains explicitly. One sentence each.
-- topicsToReview: 5-8 technical topics the candidate should study before the interview. Short phrases.
-- matchScore: 0-100 overall fit.
-- summary: 2-3 sentence assessment.`,
-      prompt: `Candidate:\n${JSON.stringify(data.resumeAnalysis)}\n\nJob description:\n"""${data.jobDescription}"""`,
+- technicalSkills: hard/technical skills the JD names or implies (empty [] if not applicable).
+- softSkills: interpersonal, leadership, communication competencies.
+- toolsAndTechnologies: named software, platforms, systems, or equipment.
+- industryKnowledge: domain knowledge / regulations / market context.
+- certifications: named certifications, licenses, credentials, or methodologies (e.g. PMP, CFA, Six Sigma, Scrum, HIPAA).
+- keywordsAndCompetencies: important phrases and competencies the employer emphasizes.
+- likelyQuestions: 8-12 interview questions tailored to THIS role, referencing the JD's language. One sentence each. Mix behavioral + role-specific.
+- matchScore: 0-100 fit against the candidate — return null if no resumeAnalysis provided.
+- summary: 2-3 sentences describing the role and what the interview will emphasize.
+
+Every list must be JD-specific — do not return generic filler.`,
+      prompt: `Candidate analysis (may be null):\n${JSON.stringify(data.resumeAnalysis)}\n\nJob description:\n"""${data.jobDescription}"""`,
       output: Output.object({ schema: JdSchema }),
     });
 
     return output;
+  });
+
+// ---------- AI-generated study plan ----------
+
+const PlanDaySchema = z.object({
+  date: z.string(),
+  focusArea: z.string().max(80),
+  topics: z.array(z.string()).max(8),
+  activities: z.array(z.string()).max(6),
+  estimatedHours: z.number().min(0).max(12),
+});
+
+const PlanInput = z.object({
+  jobDescription: z.string().min(10).max(10000),
+  jdAnalysis: JdSchema.nullable(),
+  resumeAnalysis: ResumeSchema.nullable(),
+  experienceLevel: z.enum(["beginner", "intermediate", "experienced"]),
+  hoursPerDay: z.number().min(1).max(12),
+  days: z.number().int().min(1).max(60),
+  startDate: z.string(), // ISO
+});
+
+const PlanSchema = z.object({
+  plan: z.array(PlanDaySchema).max(60),
+});
+
+export const generatePlan = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => PlanInput.parse(data))
+  .handler(async ({ data }) => {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const gateway = createLovableAiGatewayProvider(key);
+
+    const { output } = await generateText({
+      model: gateway("google/gemini-3-flash-preview"),
+      system: `You are an interview preparation coach. Build a day-by-day preparation schedule for ANY profession based on the job description, the candidate's background, and their time budget.
+
+Rules:
+- Return exactly ${data.days} entries in "plan", one per day, starting on ${data.startDate}. Increment date by one day each entry (YYYY-MM-DD).
+- Each day's estimatedHours must be <= ${data.hoursPerDay} (respect the candidate's time budget).
+- Tailor the plan to the candidate's experienceLevel="${data.experienceLevel}": beginners spend more time on foundations, experienced candidates focus on advanced/behavioral/company-specific prep.
+- Prioritize gaps: missing skills from the resume vs JD, weak areas, and topics the employer emphasizes.
+- focusArea should be a short category (e.g. "Technical foundations", "Tools mastery", "Behavioral stories", "Industry knowledge", "Mock interview", "Rest & review").
+- topics: 2-5 specific topics from the JD/resume analysis.
+- activities: 2-5 concrete actions ("Read X", "Draft STAR story about Y", "Complete 5 practice problems on Z", "Research the company's recent product launches").
+- If days >= 3, dedicate the second-to-last day to a full mock interview.
+- The last day is always light: rest, review notes, prepare questions for the interviewer.
+- Front-load high-priority gaps; back-load review and behavioral prep.
+- Be specific to THIS role — no generic filler.`,
+      prompt: `startDate: ${data.startDate}
+days: ${data.days}
+hoursPerDay: ${data.hoursPerDay}
+experienceLevel: ${data.experienceLevel}
+
+Job description:
+"""${data.jobDescription.slice(0, 6000)}"""
+
+JD analysis:
+${JSON.stringify(data.jdAnalysis)}
+
+Resume analysis (may be null):
+${JSON.stringify(data.resumeAnalysis)}`,
+      output: Output.object({ schema: PlanSchema }),
+    });
+
+    return output.plan;
   });
 
 // ---------- Persistence (signed-in users only) ----------
@@ -114,15 +190,10 @@ const PrepStateSchema = z.object({
   resumeAnalysis: z.union([ResumeSchema, z.null()]),
   jobDescription: z.string(),
   jdAnalysis: z.union([JdSchema, z.null()]),
-  interviewDate: z.union([z.string(), z.null()]),
-  plan: z.array(z.object({
-    date: z.string(),
-    topic: z.enum(["api", "sql", "playwright", "mock", "review"]),
-    focus: z.string(),
-    drills: z.array(z.string()),
-  })),
+  interviewDate: z.union([z.string(), z.null()]).optional(),
+  plan: z.array(PlanDaySchema),
   completed: z.array(z.string()),
-});
+}).passthrough();
 
 export const savePrep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -137,7 +208,7 @@ export const savePrep = createServerFn({ method: "POST" })
         resume_analysis: data.resumeAnalysis,
         job_description: data.jobDescription,
         jd_analysis: data.jdAnalysis,
-        interview_date: data.interviewDate,
+        interview_date: data.interviewDate ?? null,
         plan: data.plan,
         completed: data.completed,
       }, { onConflict: "user_id" });
@@ -162,7 +233,7 @@ export const loadPrep = createServerFn({ method: "GET" })
       jobDescription: data.job_description ?? "",
       jdAnalysis: (data.jd_analysis as z.infer<typeof JdSchema> | null) ?? null,
       interviewDate: data.interview_date ?? null,
-      plan: (data.plan as z.infer<typeof PrepStateSchema>["plan"] | null) ?? [],
+      plan: (data.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
       completed: (data.completed as string[] | null) ?? [],
     };
   });

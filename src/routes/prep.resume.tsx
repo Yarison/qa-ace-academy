@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Upload, Loader2, ArrowRight, FileText, Sparkles, X } from "lucide-react";
+import { Upload, Loader2, ArrowRight, ArrowLeft, FileText, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { analyzeResume, savePrep, loadPrep } from "@/lib/prep.functions";
 import { loadPrepLocal, savePrepLocal, EMPTY_PREP, type PrepState } from "@/lib/prep-storage";
@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/prep/resume")({
   head: () => ({
     meta: [
-      { title: "Step 1 — Your resume — qa.repl" },
-      { name: "description", content: "Upload or paste your resume so we can identify your strengths and gaps." },
+      { title: "Step 2 — Your resume — AI Interview Coach" },
+      { name: "description", content: "Optionally upload or paste your resume for a personalized fit report and study plan." },
     ],
   }),
   component: ResumeStep,
@@ -48,7 +48,7 @@ function ResumeStep() {
   async function persist(next: PrepState) {
     savePrepLocal(next);
     if (signedIn) {
-      try { await savePrep({ data: next }); } catch { /* toast optional */ }
+      try { await savePrep({ data: next }); } catch { /* ignore */ }
     }
   }
 
@@ -69,7 +69,7 @@ function ResumeStep() {
       setFileName(f.name);
       setPdfBase64(null);
     } else {
-      toast.error("Unsupported file. Upload a PDF or paste text (DOCX users: copy/paste text).");
+      toast.error("Unsupported file. Upload a PDF or paste text.");
     }
   }
 
@@ -104,17 +104,18 @@ function ResumeStep() {
   return (
     <div>
       <header>
-        <p className="eyebrow">Step 1 · optional</p>
+        <p className="eyebrow">Step 2 · optional</p>
         <h1 className="display-2 mt-2">Tell us about you.</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Upload a PDF resume or paste the text. We'll estimate your experience level, extract your skills, and flag weak areas an interviewer might probe.
+          Optional but recommended. Upload a PDF or paste your resume to get a match score against the JD
+          and a truly personalized plan focused on your gaps.
         </p>
       </header>
 
       <div className="surface mt-8 rounded-2xl border border-border p-6">
         <label className="block">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium">Resume text</span>
+            <span className="text-sm font-medium">Resume</span>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium hover:bg-accent">
               <Upload className="h-3.5 w-3.5" />
               {fileName ? "Change file" : "Upload PDF or .txt"}
@@ -151,11 +152,14 @@ function ResumeStep() {
             {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {a ? "Re-analyze" : "Analyze resume"}
           </Button>
+          <Link to="/prep/jd" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> back to JD
+          </Link>
           <button
-            onClick={() => navigate({ to: "/prep/jd" })}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => navigate({ to: "/prep/plan" })}
+            className="ml-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            Skip to job description <ArrowRight className="h-3.5 w-3.5" />
+            Skip to plan <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -163,7 +167,7 @@ function ResumeStep() {
       {a && (
         <div className="surface mt-6 rounded-2xl border border-border p-6">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold">Analysis</h2>
+            <h2 className="text-lg font-semibold">Your profile</h2>
             <span className="text-sm text-muted-foreground">~{a.yearsExperience} years experience</span>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{a.summary}</p>
@@ -178,7 +182,7 @@ function ResumeStep() {
               </div>
             </div>
             <div>
-              <p className="eyebrow">Weak areas</p>
+              <p className="eyebrow">Areas to strengthen</p>
               <ul className="mt-2 space-y-1 text-sm">
                 {a.weakAreas.map((w) => (
                   <li key={w} className="flex gap-2"><span className="text-destructive">•</span> {w}</li>
@@ -188,8 +192,8 @@ function ResumeStep() {
           </div>
 
           <div className="mt-6 flex justify-end">
-            <Button onClick={() => navigate({ to: "/prep/jd" })}>
-              Next: job description <ArrowRight className="h-4 w-4" />
+            <Button onClick={() => navigate({ to: "/prep/plan" })}>
+              Next: build my plan <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
