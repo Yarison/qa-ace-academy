@@ -1,20 +1,20 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { FileText, Briefcase, Calendar, Check } from "lucide-react";
+import { Briefcase, FileText, Calendar, Check } from "lucide-react";
 
 export const Route = createFileRoute("/prep")({
   head: () => ({
     meta: [
-      { title: "Interview prep — qa.repl" },
-      { name: "description", content: "Upload your resume, paste a job description, and get a personalized study calendar to ace your QA interview." },
+      { title: "Interview prep — AI Interview Coach" },
+      { name: "description", content: "Paste any job description, share your background, and get a personalized study schedule for your interview." },
     ],
   }),
   component: PrepLayout,
 });
 
 const STEPS = [
-  { to: "/prep/resume", label: "Resume", short: "1", icon: FileText },
-  { to: "/prep/jd", label: "Job description", short: "2", icon: Briefcase },
-  { to: "/prep/plan", label: "Calendar", short: "3", icon: Calendar },
+  { to: "/prep/jd", label: "Job & setup", short: "1", icon: Briefcase },
+  { to: "/prep/resume", label: "Resume (optional)", short: "2", icon: FileText },
+  { to: "/prep/plan", label: "Your plan", short: "3", icon: Calendar },
 ] as const;
 
 function PrepLayout() {
