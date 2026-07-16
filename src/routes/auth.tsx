@@ -6,11 +6,22 @@ import { Loader2, Terminal } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — qa.repl" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : "",
+  }),
   component: AuthPage,
 });
 
+// Only allow same-origin relative paths to prevent open-redirect abuse.
+function safeNext(next: string): string {
+  if (!next.startsWith("/") || next.startsWith("//")) return "/";
+  return next;
+}
+
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const target = safeNext(next);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,9 +29,9 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (data.session) window.location.href = target;
     });
-  }, [navigate]);
+  }, [target]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +40,7 @@ function AuthPage() {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: window.location.origin + target },
         });
         if (error) throw error;
         toast.success("Account created. You're signed in.");
@@ -38,7 +49,9 @@ function AuthPage() {
         if (error) throw error;
         toast.success("Welcome back.");
       }
-      navigate({ to: "/" });
+      // Use full-page nav so external consent URLs (e.g. /.lovable/oauth/consent) work.
+      if (target !== "/") window.location.href = target;
+      else navigate({ to: "/" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally { setLoading(false); }
