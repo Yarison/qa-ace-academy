@@ -26,7 +26,7 @@ export default defineTool({
       .select(
         "job_description, jd_analysis, resume_analysis, interview_date, plan, completed, updated_at",
       )
-      .eq("user_id", ctx.getUserId())
+      .eq("user_id", ctx.getUserId()!)
       .maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) {

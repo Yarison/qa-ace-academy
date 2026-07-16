@@ -27,7 +27,7 @@ export default defineTool({
     const { data, error } = await supabase
       .from("mock_sessions")
       .select("id, topic, score, summary, transcript, created_at")
-      .eq("user_id", ctx.getUserId())
+      .eq("user_id", ctx.getUserId()!)
       .eq("id", id)
       .maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
