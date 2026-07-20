@@ -125,7 +125,9 @@ const PlanDaySchema = z.object({
   topics: z.array(z.string()).max(8),
   activities: z.array(z.string()).max(6),
   estimatedHours: z.number().min(0).max(12),
+  questions: z.array(z.string()).max(6).optional(),
 });
+
 
 const PlanInput = z.object({
   jobDescription: z.string().min(10).max(10000),
