@@ -27,6 +27,7 @@ import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticate
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as PrepPlanIndexRouteImport } from './routes/prep.plan.index'
+import { Route as PrepPlanDateRouteImport } from './routes/prep.plan.$date'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
@@ -121,6 +122,11 @@ const PrepPlanIndexRoute = PrepPlanIndexRouteImport.update({
   path: '/plan/',
   getParentRoute: () => PrepRoute,
 } as any)
+const PrepPlanDateRoute = PrepPlanDateRouteImport.update({
+  id: '/plan/$date',
+  path: '/plan/$date',
+  getParentRoute: () => PrepRoute,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan/': typeof PrepPlanIndexRoute
 }
 export interface FileRoutesByTo {
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/prep': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan': typeof PrepPlanIndexRoute
 }
 export interface FileRoutesById {
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan/': typeof PrepPlanIndexRoute
 }
 export interface FileRouteTypes {
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/prep/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/prep/plan/$date'
     | '/prep/plan/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/prep'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/prep/plan/$date'
     | '/prep/plan'
   id:
     | '__root__'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/prep/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/prep/plan/$date'
     | '/prep/plan/'
   fileRoutesById: FileRoutesById
 }
@@ -405,6 +417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrepPlanIndexRouteImport
       parentRoute: typeof PrepRoute
     }
+    '/prep/plan/$date': {
+      id: '/prep/plan/$date'
+      path: '/plan/$date'
+      fullPath: '/prep/plan/$date'
+      preLoaderRoute: typeof PrepPlanDateRouteImport
+      parentRoute: typeof PrepRoute
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -451,6 +470,7 @@ interface PrepRouteChildren {
   PrepJdRoute: typeof PrepJdRoute
   PrepResumeRoute: typeof PrepResumeRoute
   PrepIndexRoute: typeof PrepIndexRoute
+  PrepPlanDateRoute: typeof PrepPlanDateRoute
   PrepPlanIndexRoute: typeof PrepPlanIndexRoute
 }
 
@@ -458,6 +478,7 @@ const PrepRouteChildren: PrepRouteChildren = {
   PrepJdRoute: PrepJdRoute,
   PrepResumeRoute: PrepResumeRoute,
   PrepIndexRoute: PrepIndexRoute,
+  PrepPlanDateRoute: PrepPlanDateRoute,
   PrepPlanIndexRoute: PrepPlanIndexRoute,
 }
 
