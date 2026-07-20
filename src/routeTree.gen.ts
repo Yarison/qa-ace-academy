@@ -20,13 +20,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PrepResumeRouteImport } from './routes/prep.resume'
-import { Route as PrepPlanRouteImport } from './routes/prep.plan'
 import { Route as PrepJdRouteImport } from './routes/prep.jd'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as PrepPlanIndexRouteImport } from './routes/prep.plan.index'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
@@ -84,11 +84,6 @@ const PrepResumeRoute = PrepResumeRouteImport.update({
   path: '/resume',
   getParentRoute: () => PrepRoute,
 } as any)
-const PrepPlanRoute = PrepPlanRouteImport.update({
-  id: '/plan',
-  path: '/plan',
-  getParentRoute: () => PrepRoute,
-} as any)
 const PrepJdRoute = PrepJdRouteImport.update({
   id: '/jd',
   path: '/jd',
@@ -121,6 +116,11 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PrepPlanIndexRoute = PrepPlanIndexRouteImport.update({
+  id: '/plan/',
+  path: '/plan/',
+  getParentRoute: () => PrepRoute,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -147,12 +147,12 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
-  '/prep/plan': typeof PrepPlanRoute
   '/prep/resume': typeof PrepResumeRoute
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/prep/plan/': typeof PrepPlanIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -166,12 +166,12 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
-  '/prep/plan': typeof PrepPlanRoute
   '/prep/resume': typeof PrepResumeRoute
   '/practice': typeof PracticeIndexRoute
   '/prep': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/prep/plan': typeof PrepPlanIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -189,12 +189,12 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
-  '/prep/plan': typeof PrepPlanRoute
   '/prep/resume': typeof PrepResumeRoute
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/prep/plan/': typeof PrepPlanIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -212,12 +212,12 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/practice/$category'
     | '/prep/jd'
-    | '/prep/plan'
     | '/prep/resume'
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/prep/plan/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -231,12 +231,12 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/practice/$category'
     | '/prep/jd'
-    | '/prep/plan'
     | '/prep/resume'
     | '/practice'
     | '/prep'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/prep/plan'
   id:
     | '__root__'
     | '/'
@@ -253,12 +253,12 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/practice/$category'
     | '/prep/jd'
-    | '/prep/plan'
     | '/prep/resume'
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/prep/plan/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -356,13 +356,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrepResumeRouteImport
       parentRoute: typeof PrepRoute
     }
-    '/prep/plan': {
-      id: '/prep/plan'
-      path: '/plan'
-      fullPath: '/prep/plan'
-      preLoaderRoute: typeof PrepPlanRouteImport
-      parentRoute: typeof PrepRoute
-    }
     '/prep/jd': {
       id: '/prep/jd'
       path: '/jd'
@@ -404,6 +397,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/prep/plan/': {
+      id: '/prep/plan/'
+      path: '/plan'
+      fullPath: '/prep/plan/'
+      preLoaderRoute: typeof PrepPlanIndexRouteImport
+      parentRoute: typeof PrepRoute
     }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
@@ -449,16 +449,16 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
 
 interface PrepRouteChildren {
   PrepJdRoute: typeof PrepJdRoute
-  PrepPlanRoute: typeof PrepPlanRoute
   PrepResumeRoute: typeof PrepResumeRoute
   PrepIndexRoute: typeof PrepIndexRoute
+  PrepPlanIndexRoute: typeof PrepPlanIndexRoute
 }
 
 const PrepRouteChildren: PrepRouteChildren = {
   PrepJdRoute: PrepJdRoute,
-  PrepPlanRoute: PrepPlanRoute,
   PrepResumeRoute: PrepResumeRoute,
   PrepIndexRoute: PrepIndexRoute,
+  PrepPlanIndexRoute: PrepPlanIndexRoute,
 }
 
 const PrepRouteWithChildren = PrepRoute._addFileChildren(PrepRouteChildren)
