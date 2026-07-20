@@ -88,8 +88,10 @@ export function loadPrepLocal(): PrepState {
       ...EMPTY_PREP,
       ...parsed,
       preferences: { ...EMPTY_PREP.preferences, ...(parsed.preferences ?? {}) },
+      answers: (parsed.answers && typeof parsed.answers === "object") ? parsed.answers : {},
     };
   } catch {
+
     return EMPTY_PREP;
   }
 }
