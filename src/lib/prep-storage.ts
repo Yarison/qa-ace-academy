@@ -35,6 +35,17 @@ export type PlanDay = {
   topics: string[];
   activities: string[]; // concrete tasks
   estimatedHours: number;
+  questions?: string[]; // interview-style questions to practice this day
+};
+
+export type TaskAnswer = {
+  question: string;
+  answer: string;
+  score: number; // 0-10
+  feedback: string;
+  weakAreas: string[];
+  followUpQuestions: string[];
+  answeredAt: string; // ISO datetime
 };
 
 export type PrepState = {
@@ -45,6 +56,7 @@ export type PrepState = {
   preferences: Preferences;
   plan: PlanDay[];
   completed: string[]; // ISO dates marked done
+  answers: Record<string, TaskAnswer[]>; // keyed by day ISO date
 };
 
 export const EMPTY_PREP: PrepState = {
@@ -60,7 +72,9 @@ export const EMPTY_PREP: PrepState = {
   },
   plan: [],
   completed: [],
+  answers: {},
 };
+
 
 const KEY = "ai.prep.v2";
 
@@ -74,8 +88,10 @@ export function loadPrepLocal(): PrepState {
       ...EMPTY_PREP,
       ...parsed,
       preferences: { ...EMPTY_PREP.preferences, ...(parsed.preferences ?? {}) },
+      answers: (parsed.answers && typeof parsed.answers === "object") ? parsed.answers : {},
     };
   } catch {
+
     return EMPTY_PREP;
   }
 }

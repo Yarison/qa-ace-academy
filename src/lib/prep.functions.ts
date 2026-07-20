@@ -125,7 +125,9 @@ const PlanDaySchema = z.object({
   topics: z.array(z.string()).max(8),
   activities: z.array(z.string()).max(6),
   estimatedHours: z.number().min(0).max(12),
+  questions: z.array(z.string()).max(6).optional(),
 });
+
 
 const PlanInput = z.object({
   jobDescription: z.string().min(10).max(10000),
@@ -163,6 +165,7 @@ Rules:
 - If days >= 3, dedicate the second-to-last day to a full mock interview.
 - The last day is always light: rest, review notes, prepare questions for the interviewer.
 - Front-load high-priority gaps; back-load review and behavioral prep.
+- questions: 3-5 realistic interview questions the candidate should be able to answer at the end of that day. Match the day's focusArea and topics. Behavioral days -> behavioral questions; technical/tools days -> technical/scenario questions. Be specific to THIS role. Skip questions on pure "Rest & review" days.
 - Be specific to THIS role — no generic filler.`,
       prompt: `startDate: ${data.startDate}
 days: ${data.days}
@@ -183,7 +186,143 @@ ${JSON.stringify(data.resumeAnalysis)}`,
     return output.plan;
   });
 
+// ---------- Answer evaluation ----------
+
+const EvalInput = z.object({
+  question: z.string().min(1).max(2000),
+  answer: z.string().min(1).max(8000),
+  focusArea: z.string().max(120).optional(),
+  jobDescription: z.string().max(10000).optional(),
+  jdAnalysis: JdSchema.nullable().optional(),
+  resumeAnalysis: ResumeSchema.nullable().optional(),
+});
+
+const EvalSchema = z.object({
+  score: z.number().min(0).max(10),
+  feedback: z.string().max(1200),
+  weakAreas: z.array(z.string()).max(6),
+  followUpQuestions: z.array(z.string()).max(4),
+});
+
+export const evaluateAnswer = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => EvalInput.parse(data))
+  .handler(async ({ data }) => {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const gateway = createLovableAiGatewayProvider(key);
+
+    const { output } = await generateText({
+      model: gateway("google/gemini-3-flash-preview"),
+      system: `You are a rigorous but supportive interview coach. Evaluate the candidate's answer to a real interview question. Be honest, concrete, and specific to the role.
+
+Return:
+- score: 0-10 (0-3 poor/off-topic, 4-6 partial, 7-8 solid, 9-10 excellent + role-tailored).
+- feedback: 2-4 sentences. Call out what was strong, what was missing, and one concrete way to improve.
+- weakAreas: 1-4 short phrases naming underlying gaps (e.g. "STAR structure", "quantifying impact", "SQL window functions"). These will be used to personalize the next study plan.
+- followUpQuestions: 1-3 sharper interview-style follow-ups a real interviewer would ask next, based on gaps or claims made in the answer.`,
+      prompt: `Focus area: ${data.focusArea ?? "n/a"}
+
+Job description:
+"""${(data.jobDescription ?? "").slice(0, 4000)}"""
+
+JD analysis:
+${JSON.stringify(data.jdAnalysis ?? null)}
+
+Candidate background:
+${JSON.stringify(data.resumeAnalysis ?? null)}
+
+Interview question:
+${data.question}
+
+Candidate answer:
+"""${data.answer}"""`,
+      output: Output.object({ schema: EvalSchema }),
+    });
+
+    return output;
+  });
+
+// ---------- Plan refinement based on answer performance ----------
+
+const RefineInput = z.object({
+  jobDescription: z.string().min(10).max(10000),
+  jdAnalysis: JdSchema.nullable(),
+  resumeAnalysis: ResumeSchema.nullable(),
+  experienceLevel: z.enum(["beginner", "intermediate", "experienced"]),
+  hoursPerDay: z.number().min(1).max(12),
+  startDate: z.string(),
+  remainingDays: z.number().int().min(1).max(60),
+  currentPlan: z.array(PlanDaySchema).max(60),
+  answerHistory: z.array(z.object({
+    question: z.string(),
+    score: z.number(),
+    weakAreas: z.array(z.string()),
+    focusArea: z.string().optional(),
+  })).max(200),
+});
+
+export const refinePlan = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => RefineInput.parse(data))
+  .handler(async ({ data }) => {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const gateway = createLovableAiGatewayProvider(key);
+
+    const aggregatedWeakAreas = Array.from(
+      new Set(data.answerHistory.flatMap((a) => a.weakAreas))
+    ).slice(0, 30);
+    const avgScore = data.answerHistory.length
+      ? (data.answerHistory.reduce((s, a) => s + a.score, 0) / data.answerHistory.length).toFixed(1)
+      : "n/a";
+
+    const { output } = await generateText({
+      model: gateway("google/gemini-3-flash-preview"),
+      system: `You are an interview coach revising a candidate's remaining study plan based on how they actually performed on practice questions.
+
+Rules:
+- Return exactly ${data.remainingDays} entries in "plan", one per day, starting on ${data.startDate} (YYYY-MM-DD, incrementing daily).
+- Each estimatedHours <= ${data.hoursPerDay}.
+- Aggressively prioritize the aggregated weakAreas below — the weaker the past answers, the more days you spend re-drilling those gaps with fresh angles and harder follow-ups.
+- Keep topics/activities specific to THIS role. Include a mock interview day near the end if remainingDays >= 3, and a light review on the final day.
+- questions: 3-5 targeted interview questions per day that directly probe the identified weak areas (or the day's focus).
+- Do NOT repeat identical questions the candidate already answered.`,
+      prompt: `startDate: ${data.startDate}
+remainingDays: ${data.remainingDays}
+hoursPerDay: ${data.hoursPerDay}
+experienceLevel: ${data.experienceLevel}
+avgScore: ${avgScore}
+
+Aggregated weak areas from past answers (prioritize these):
+${aggregatedWeakAreas.join(", ") || "(none yet)"}
+
+Recent answered questions (avoid duplicating):
+${data.answerHistory.slice(-20).map((a) => `- [${a.score}/10] ${a.question}`).join("\n")}
+
+Job description:
+"""${data.jobDescription.slice(0, 5000)}"""
+
+JD analysis:
+${JSON.stringify(data.jdAnalysis)}
+
+Resume analysis:
+${JSON.stringify(data.resumeAnalysis)}`,
+      output: Output.object({ schema: PlanSchema }),
+    });
+
+    return output.plan;
+  });
+
 // ---------- Persistence (signed-in users only) ----------
+
+const TaskAnswerSchema = z.object({
+  question: z.string(),
+  answer: z.string(),
+  score: z.number(),
+  feedback: z.string(),
+  weakAreas: z.array(z.string()),
+  followUpQuestions: z.array(z.string()),
+  answeredAt: z.string(),
+});
 
 const PrepStateSchema = z.object({
   resumeText: z.string(),
@@ -193,6 +332,7 @@ const PrepStateSchema = z.object({
   interviewDate: z.union([z.string(), z.null()]).optional(),
   plan: z.array(PlanDaySchema),
   completed: z.array(z.string()),
+  answers: z.record(z.string(), z.array(TaskAnswerSchema)).optional(),
 }).passthrough();
 
 export const savePrep = createServerFn({ method: "POST" })
@@ -211,6 +351,7 @@ export const savePrep = createServerFn({ method: "POST" })
         interview_date: data.interviewDate ?? null,
         plan: data.plan,
         completed: data.completed,
+        answers: data.answers ?? {},
       }, { onConflict: "user_id" });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -222,7 +363,7 @@ export const loadPrep = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("prep_sessions")
-      .select("resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed")
+      .select("resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed, answers")
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -235,5 +376,7 @@ export const loadPrep = createServerFn({ method: "GET" })
       interviewDate: data.interview_date ?? null,
       plan: (data.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
       completed: (data.completed as string[] | null) ?? [],
+      answers: ((data as { answers?: unknown }).answers as Record<string, z.infer<typeof TaskAnswerSchema>[]> | null) ?? {},
     };
   });
+

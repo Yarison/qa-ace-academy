@@ -1,0 +1,1 @@
+ALTER TABLE public.prep_sessions ADD COLUMN IF NOT EXISTS answers jsonb NOT NULL DEFAULT '{}'::jsonb;
