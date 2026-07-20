@@ -78,12 +78,48 @@ function PlanStep() {
           startDate: todayISO(),
         },
       });
-      await persist({ ...state, plan, completed: [] });
+      await persist({ ...state, plan, completed: [], answers: {} });
       toast.success(`Plan built — ${plan.length} days`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Plan generation failed");
     } finally {
       setBuilding(false);
+    }
+  }
+
+  const [refining, setRefining] = useState(false);
+  async function refine() {
+    if (!state.jobDescription) return;
+    const today = todayISO();
+    const remaining = state.plan.filter((d) => d.date >= today);
+    const remainingDays = Math.max(1, remaining.length || days || 7);
+    setRefining(true);
+    try {
+      const history = Object.values(state.answers ?? {}).flat().map((a) => ({
+        question: a.question,
+        score: a.score,
+        weakAreas: a.weakAreas,
+      }));
+      const newPlan = await refinePlan({
+        data: {
+          jobDescription: state.jobDescription,
+          jdAnalysis: state.jdAnalysis,
+          resumeAnalysis: state.resumeAnalysis,
+          experienceLevel: state.preferences.experienceLevel,
+          hoursPerDay: state.preferences.hoursPerDay,
+          startDate: today,
+          remainingDays,
+          currentPlan: remaining,
+          answerHistory: history,
+        },
+      });
+      const kept = state.plan.filter((d) => d.date < today);
+      await persist({ ...state, plan: [...kept, ...newPlan] });
+      toast.success("Plan re-personalized from your answers");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Refinement failed");
+    } finally {
+      setRefining(false);
     }
   }
 
@@ -94,8 +130,9 @@ function PlanStep() {
   }
 
   function reset() {
-    void persist({ ...state, plan: [], completed: [] });
+    void persist({ ...state, plan: [], completed: [], answers: {} });
   }
+
 
   const progress = state.plan.length
     ? Math.round((state.completed.length / state.plan.length) * 100)
