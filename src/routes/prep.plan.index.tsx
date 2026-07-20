@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Calendar as CalendarIcon, Check, Loader2, RotateCcw, Sparkles, Clock } from "lucide-react";
-import { generatePlan, savePrep, loadPrep } from "@/lib/prep.functions";
+import { ArrowLeft, Calendar as CalendarIcon, Check, ChevronRight, Loader2, MessageSquare, RotateCcw, Sparkles, Clock, Wand2 } from "lucide-react";
+import { generatePlan, refinePlan, savePrep, loadPrep } from "@/lib/prep.functions";
 import {
   loadPrepLocal,
   savePrepLocal,
@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/prep/plan/")({
   head: () => ({
