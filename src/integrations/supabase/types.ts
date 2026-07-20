@@ -46,6 +46,7 @@ export type Database = {
       }
       prep_sessions: {
         Row: {
+          answers: Json
           completed: Json
           created_at: string
           id: string
@@ -60,6 +61,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          answers?: Json
           completed?: Json
           created_at?: string
           id?: string
@@ -74,6 +76,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          answers?: Json
           completed?: Json
           created_at?: string
           id?: string
