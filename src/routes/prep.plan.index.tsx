@@ -214,6 +214,8 @@ function PlanStep() {
               const done = state.completed.includes(day.date);
               const isPast = day.date < todayISO();
               const isToday = day.date === todayISO();
+              const dayAnswers = state.answers?.[day.date] ?? [];
+              const questionCount = day.questions?.length ?? 0;
               return (
                 <li
                   key={day.date}
@@ -231,7 +233,11 @@ function PlanStep() {
                     {done && <Check className="h-3.5 w-3.5" />}
                   </button>
 
-                  <div className="flex-1">
+                  <Link
+                    to="/prep/plan/$date"
+                    params={{ date: day.date }}
+                    className="flex-1 min-w-0 group"
+                  >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-xs text-muted-foreground">
                         {formatDate(day.date)}
@@ -244,6 +250,12 @@ function PlanStep() {
                       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                         <Clock className="h-3 w-3" /> ~{day.estimatedHours}h
                       </span>
+                      {questionCount > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <MessageSquare className="h-3 w-3" /> {dayAnswers.length}/{questionCount} answered
+                        </span>
+                      )}
+                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </div>
                     {day.topics.length > 0 && (
                       <p className="mt-2 text-sm font-medium">
@@ -257,11 +269,12 @@ function PlanStep() {
                         ))}
                       </ul>
                     )}
-                  </div>
+                  </Link>
                 </li>
               );
             })}
           </ol>
+
         </>
       )}
 
