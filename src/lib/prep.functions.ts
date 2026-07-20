@@ -165,6 +165,7 @@ Rules:
 - If days >= 3, dedicate the second-to-last day to a full mock interview.
 - The last day is always light: rest, review notes, prepare questions for the interviewer.
 - Front-load high-priority gaps; back-load review and behavioral prep.
+- questions: 3-5 realistic interview questions the candidate should be able to answer at the end of that day. Match the day's focusArea and topics. Behavioral days -> behavioral questions; technical/tools days -> technical/scenario questions. Be specific to THIS role. Skip questions on pure "Rest & review" days.
 - Be specific to THIS role — no generic filler.`,
       prompt: `startDate: ${data.startDate}
 days: ${data.days}
