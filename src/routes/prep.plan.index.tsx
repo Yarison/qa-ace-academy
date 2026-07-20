@@ -158,6 +158,12 @@ function PlanStep() {
             {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {state.plan.length ? "Rebuild plan" : "Generate plan"}
           </Button>
+          {state.plan.length > 0 && Object.values(state.answers ?? {}).flat().length > 0 && (
+            <Button variant="secondary" onClick={refine} disabled={refining}>
+              {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              Re-personalize from my answers
+            </Button>
+          )}
           {state.plan.length > 0 && (
             <Button variant="ghost" size="sm" onClick={reset}>
               <RotateCcw className="h-3.5 w-3.5" /> reset
@@ -167,6 +173,7 @@ function PlanStep() {
             <ArrowLeft className="h-3.5 w-3.5" /> edit setup
           </Link>
         </div>
+
 
         {!canBuild && (
           <p className="mt-4 text-sm text-muted-foreground">
