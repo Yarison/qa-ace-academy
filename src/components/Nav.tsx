@@ -22,7 +22,7 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-12 max-w-6xl items-center gap-8 px-6 text-[13px]">
-        <Link to="/" className="font-semibold tracking-tight text-foreground">
+        <Link to="/" search={{}} className="font-semibold tracking-tight text-foreground">
           ai<span className="text-terminal">.</span>coach
         </Link>
         <div className="hidden items-center gap-1 md:flex">
@@ -30,6 +30,7 @@ export function Nav() {
             <Link
               key={l.to}
               to={l.to}
+              search={{}}
               className="rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               activeProps={{
                 className:
@@ -45,6 +46,7 @@ export function Nav() {
             <>
               <Link
                 to="/history"
+                search={{ next: "" }}
                 className="hidden rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
                 activeProps={{
                   className:
@@ -56,7 +58,7 @@ export function Nav() {
               <button
                 onClick={async () => {
                   await supabase.auth.signOut();
-                  navigate({ to: "/" });
+                  navigate({ to: "/", search: {} });
                 }}
                 className="rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground"
               >
@@ -66,6 +68,7 @@ export function Nav() {
           ) : (
             <Link
               to="/auth"
+              search={{ next: "" }}
               className="rounded-full bg-foreground px-3.5 py-1.5 text-background transition-opacity hover:opacity-90"
             >
               Sign in

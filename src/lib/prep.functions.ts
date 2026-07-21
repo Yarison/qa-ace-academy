@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createGeminiProvider } from "@/lib/ai-gateway.server";
 
 // ---------- Resume analysis ----------
 
@@ -21,22 +21,20 @@ const ResumeSchema = z.object({
 export const analyzeResume = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => ResumeInput.parse(data))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
 
     let resumeText = data.text ?? "";
     if (data.pdfBase64 && !resumeText) {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
+          contents: [
             {
-              role: "user",
-              content: [
-                { type: "text", text: "Extract ALL text content from this resume PDF, preserving section headings and dates. Return only the plain text — no commentary." },
-                { type: "file", file: { filename: "resume.pdf", file_data: `data:application/pdf;base64,${data.pdfBase64}` } },
+              parts: [
+                { text: "Extract ALL text content from this resume PDF, preserving section headings and dates. Return only the plain text — no commentary." },
+                { inlineData: { mimeType: "application/pdf", data: data.pdfBase64 } },
               ],
             },
           ],
@@ -53,19 +51,19 @@ export const analyzeResume = createServerFn({ method: "POST" })
       }
     }
 
-    const gateway = createLovableAiGatewayProvider(key);
-    const { output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+    const gateway = createGeminiProvider(key);
+    const result = await generateText({
+      model: gateway("gemini-2.0-flash"),
       system: `You are an experienced hiring manager analyzing a resume for any profession. Be specific and honest.
 - yearsExperience: estimate years of professional experience (integer, best guess).
 - skills: concrete skills present — technical, tools, soft skills, methodologies, languages. Max 20.
 - weakAreas: gaps an interviewer would probe. Concrete phrases specific to this candidate's field. Max 8.
 - summary: 2-3 sentence candidate summary.`,
       prompt: `Resume:\n"""${resumeText.slice(0, 16000)}"""`,
-      output: Output.object({ schema: ResumeSchema }),
+      experimental_output: Output.object({ schema: ResumeSchema }),
     });
 
-    return { analysis: output, resumeText };
+    return { analysis: result.experimental_output, resumeText };
   });
 
 // ---------- JD analysis (universal, any profession) ----------
@@ -90,12 +88,12 @@ const JdSchema = z.object({
 export const analyzeJd = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => JdInput.parse(data))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-    const gateway = createLovableAiGatewayProvider(key);
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const gateway = createGeminiProvider(key);
 
-    const { output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+    const result = await generateText({
+      model: gateway("gemini-2.0-flash"),
       system: `You are an expert interview coach analyzing a job description for ANY profession (engineering, marketing, finance, healthcare, design, sales, operations, etc.). Extract structured requirements.
 
 Return:
@@ -111,10 +109,10 @@ Return:
 
 Every list must be JD-specific — do not return generic filler.`,
       prompt: `Candidate analysis (may be null):\n${JSON.stringify(data.resumeAnalysis)}\n\nJob description:\n"""${data.jobDescription}"""`,
-      output: Output.object({ schema: JdSchema }),
+      experimental_output: Output.object({ schema: JdSchema }),
     });
 
-    return output;
+    return result.experimental_output;
   });
 
 // ---------- AI-generated study plan ----------
@@ -146,12 +144,12 @@ const PlanSchema = z.object({
 export const generatePlan = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => PlanInput.parse(data))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-    const gateway = createLovableAiGatewayProvider(key);
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const gateway = createGeminiProvider(key);
 
-    const { output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+    const result = await generateText({
+      model: gateway("gemini-2.0-flash"),
       system: `You are an interview preparation coach. Build a day-by-day preparation schedule for ANY profession based on the job description, the candidate's background, and their time budget.
 
 Rules:
@@ -180,10 +178,10 @@ ${JSON.stringify(data.jdAnalysis)}
 
 Resume analysis (may be null):
 ${JSON.stringify(data.resumeAnalysis)}`,
-      output: Output.object({ schema: PlanSchema }),
+      experimental_output: Output.object({ schema: PlanSchema }),
     });
 
-    return output.plan;
+    return result.experimental_output.plan;
   });
 
 // ---------- Answer evaluation ----------
@@ -207,12 +205,12 @@ const EvalSchema = z.object({
 export const evaluateAnswer = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => EvalInput.parse(data))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-    const gateway = createLovableAiGatewayProvider(key);
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const gateway = createGeminiProvider(key);
 
-    const { output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+    const result = await generateText({
+      model: gateway("gemini-2.0-flash"),
       system: `You are a rigorous but supportive interview coach. Evaluate the candidate's answer to a real interview question. Be honest, concrete, and specific to the role.
 
 Return:
@@ -236,10 +234,10 @@ ${data.question}
 
 Candidate answer:
 """${data.answer}"""`,
-      output: Output.object({ schema: EvalSchema }),
+      experimental_output: Output.object({ schema: EvalSchema }),
     });
 
-    return output;
+    return result.experimental_output;
   });
 
 // ---------- Plan refinement based on answer performance ----------
@@ -264,9 +262,9 @@ const RefineInput = z.object({
 export const refinePlan = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => RefineInput.parse(data))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-    const gateway = createLovableAiGatewayProvider(key);
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const gateway = createGeminiProvider(key);
 
     const aggregatedWeakAreas = Array.from(
       new Set(data.answerHistory.flatMap((a) => a.weakAreas))
@@ -275,8 +273,8 @@ export const refinePlan = createServerFn({ method: "POST" })
       ? (data.answerHistory.reduce((s, a) => s + a.score, 0) / data.answerHistory.length).toFixed(1)
       : "n/a";
 
-    const { output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+    const result = await generateText({
+      model: gateway("gemini-2.0-flash"),
       system: `You are an interview coach revising a candidate's remaining study plan based on how they actually performed on practice questions.
 
 Rules:
@@ -306,10 +304,10 @@ ${JSON.stringify(data.jdAnalysis)}
 
 Resume analysis:
 ${JSON.stringify(data.resumeAnalysis)}`,
-      output: Output.object({ schema: PlanSchema }),
+      experimental_output: Output.object({ schema: PlanSchema }),
     });
 
-    return output.plan;
+    return result.experimental_output.plan;
   });
 
 // ---------- Persistence (signed-in users only) ----------

@@ -9,51 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
-import { Route as PrepRouteImport } from './routes/prep'
-import { Route as PracticeRouteImport } from './routes/practice'
-import { Route as MockRouteImport } from './routes/mock'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PrepIndexRouteImport } from './routes/prep.index'
-import { Route as PracticeIndexRouteImport } from './routes/practice.index'
-import { Route as PrepResumeRouteImport } from './routes/prep.resume'
-import { Route as PrepJdRouteImport } from './routes/prep.jd'
-import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as MockRouteImport } from './routes/mock'
+import { Route as PracticeRouteImport } from './routes/practice'
+import { Route as PrepRouteImport } from './routes/prep'
+import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as PracticeIndexRouteImport } from './routes/practice.index'
+import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
+import { Route as PrepIndexRouteImport } from './routes/prep.index'
+import { Route as PrepJdRouteImport } from './routes/prep.jd'
+import { Route as PrepResumeRouteImport } from './routes/prep.resume'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as PrepPlanIndexRouteImport } from './routes/prep.plan.index'
 import { Route as PrepPlanDateRouteImport } from './routes/prep.plan.$date'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
-const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
-  id: '/sql-playground',
-  path: '/sql-playground',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrepRoute = PrepRouteImport.update({
-  id: '/prep',
-  path: '/prep',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PracticeRoute = PracticeRouteImport.update({
-  id: '/practice',
-  path: '/practice',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MockRoute = MockRouteImport.update({
-  id: '/mock',
-  path: '/mock',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -61,28 +45,66 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const MockRoute = MockRouteImport.update({
+  id: '/mock',
+  path: '/mock',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrepIndexRoute = PrepIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PrepRoute,
+const PracticeRoute = PracticeRouteImport.update({
+  id: '/practice',
+  path: '/practice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrepRoute = PrepRouteImport.update({
+  id: '/prep',
+  path: '/prep',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
+  id: '/sql-playground',
+  path: '/sql-playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeIndexRoute = PracticeIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PracticeRoute,
 } as any)
-const PrepResumeRoute = PrepResumeRouteImport.update({
-  id: '/resume',
-  path: '/resume',
+const PracticeCategoryRoute = PracticeCategoryRouteImport.update({
+  id: '/$category',
+  path: '/$category',
+  getParentRoute: () => PracticeRoute,
+} as any)
+const PrepIndexRoute = PrepIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => PrepRoute,
 } as any)
 const PrepJdRoute = PrepJdRouteImport.update({
@@ -90,31 +112,20 @@ const PrepJdRoute = PrepJdRouteImport.update({
   path: '/jd',
   getParentRoute: () => PrepRoute,
 } as any)
-const PracticeCategoryRoute = PracticeCategoryRouteImport.update({
-  id: '/$category',
-  path: '/$category',
-  getParentRoute: () => PracticeRoute,
+const PrepResumeRoute = PrepResumeRouteImport.update({
+  id: '/resume',
+  path: '/resume',
+  getParentRoute: () => PrepRoute,
 } as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
 const PrepPlanIndexRoute = PrepPlanIndexRouteImport.update({
@@ -126,17 +137,6 @@ const PrepPlanDateRoute = PrepPlanDateRouteImport.update({
   id: '/plan/$date',
   path: '/plan/$date',
   getParentRoute: () => PrepRoute,
-} as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -291,46 +291,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sql-playground': {
-      id: '/sql-playground'
-      path: '/sql-playground'
-      fullPath: '/sql-playground'
-      preLoaderRoute: typeof SqlPlaygroundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/prep': {
-      id: '/prep'
-      path: '/prep'
-      fullPath: '/prep'
-      preLoaderRoute: typeof PrepRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/practice': {
-      id: '/practice'
-      path: '/practice'
-      fullPath: '/practice'
-      preLoaderRoute: typeof PracticeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mock': {
-      id: '/mock'
-      path: '/mock'
-      fullPath: '/mock'
-      preLoaderRoute: typeof MockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -340,53 +305,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/prep/': {
-      id: '/prep/'
-      path: '/'
-      fullPath: '/prep/'
-      preLoaderRoute: typeof PrepIndexRouteImport
-      parentRoute: typeof PrepRoute
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/practice/': {
-      id: '/practice/'
-      path: '/'
-      fullPath: '/practice/'
-      preLoaderRoute: typeof PracticeIndexRouteImport
-      parentRoute: typeof PracticeRoute
+    '/mock': {
+      id: '/mock'
+      path: '/mock'
+      fullPath: '/mock'
+      preLoaderRoute: typeof MockRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/prep/resume': {
-      id: '/prep/resume'
-      path: '/resume'
-      fullPath: '/prep/resume'
-      preLoaderRoute: typeof PrepResumeRouteImport
-      parentRoute: typeof PrepRoute
+    '/practice': {
+      id: '/practice'
+      path: '/practice'
+      fullPath: '/practice'
+      preLoaderRoute: typeof PracticeRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/prep/jd': {
-      id: '/prep/jd'
-      path: '/jd'
-      fullPath: '/prep/jd'
-      preLoaderRoute: typeof PrepJdRouteImport
-      parentRoute: typeof PrepRoute
+    '/prep': {
+      id: '/prep'
+      path: '/prep'
+      fullPath: '/prep'
+      preLoaderRoute: typeof PrepRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/practice/$category': {
-      id: '/practice/$category'
-      path: '/$category'
-      fullPath: '/practice/$category'
-      preLoaderRoute: typeof PracticeCategoryRouteImport
-      parentRoute: typeof PracticeRoute
+    '/sql-playground': {
+      id: '/sql-playground'
+      path: '/sql-playground'
+      fullPath: '/sql-playground'
+      preLoaderRoute: typeof SqlPlaygroundRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/history': {
@@ -396,18 +368,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+    '/practice/': {
+      id: '/practice/'
+      path: '/'
+      fullPath: '/practice/'
+      preLoaderRoute: typeof PracticeIndexRouteImport
+      parentRoute: typeof PracticeRoute
+    }
+    '/practice/$category': {
+      id: '/practice/$category'
+      path: '/$category'
+      fullPath: '/practice/$category'
+      preLoaderRoute: typeof PracticeCategoryRouteImport
+      parentRoute: typeof PracticeRoute
+    }
+    '/prep/': {
+      id: '/prep/'
+      path: '/'
+      fullPath: '/prep/'
+      preLoaderRoute: typeof PrepIndexRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/prep/jd': {
+      id: '/prep/jd'
+      path: '/jd'
+      fullPath: '/prep/jd'
+      preLoaderRoute: typeof PrepJdRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/prep/resume': {
+      id: '/prep/resume'
+      path: '/resume'
+      fullPath: '/prep/resume'
+      preLoaderRoute: typeof PrepResumeRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prep/plan/': {
@@ -423,20 +437,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/prep/plan/$date'
       preLoaderRoute: typeof PrepPlanDateRouteImport
       parentRoute: typeof PrepRoute
-    }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
-      parentRoute: typeof rootRouteImport
     }
   }
 }

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { convertToModelMessages, streamText, type UIMessage, type LanguageModel } from "ai";
 import { createClient } from "@supabase/supabase-js";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type { Database } from "@/integrations/supabase/types";
 
 const ALLOWED_TOPICS = [
@@ -55,8 +55,11 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+        const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+        if (!key) {
+          throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY');
+        }
 
         const body = (await request.json()) as { messages: UIMessage[]; topic?: string; jobDescription?: string };
         const topic = ALLOWED_TOPICS.includes(body.topic ?? "") ? body.topic! : ALLOWED_TOPICS[0];
@@ -64,14 +67,26 @@ export const Route = createFileRoute("/api/chat")({
           ? body.jobDescription.trim()
           : undefined;
 
-        const gateway = createLovableAiGatewayProvider(key);
+        const gateway = createGeminiProvider(key);
+
         const result = streamText({
-          model: gateway("google/gemini-3-flash-preview"),
+          // createGoogleGenerativeAI currently returns a v4 language model type,
+          // but streamText expects the older LanguageModel type. Cast to
+          // unknown then to LanguageModel to satisfy TypeScript until
+          // the ai types are aligned.
+          model: gateway('gemini-1.5-flash') as unknown as LanguageModel,
           system: SYSTEM(topic, jd),
           messages: await convertToModelMessages(body.messages),
         });
+
         return result.toUIMessageStreamResponse();
       },
     },
   },
 });
+
+export function createGeminiProvider(apiKey: string) {
+  return createGoogleGenerativeAI({
+    apiKey,
+  });
+}

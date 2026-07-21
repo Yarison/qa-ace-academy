@@ -25,7 +25,13 @@ function PracticeIndex() {
       <JobDescriptionPanel className="mt-6" />
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tracks.map((t) => (
-          <Link key={t.to} to={t.to} className="surface rounded-lg border border-border p-6 hover:border-terminal/40 hover:-translate-y-0.5 transition">
+          <Link
+            key={t.name}
+            to="/practice/$category"
+            params={{ category: t.name }}
+            search={{}}
+            className="surface rounded-lg border border-border p-6 hover:border-terminal/40 hover:-translate-y-0.5 transition"
+          >
             <t.icon className="h-6 w-6 text-terminal" />
             <h2 className="mt-4 font-mono text-lg">/{t.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{t.desc}</p>
