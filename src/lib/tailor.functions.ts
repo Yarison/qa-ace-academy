@@ -24,7 +24,7 @@ export const tailorQuestions = createServerFn({ method: "POST" })
       .join("\n");
 
     const result = await generateText({
-      model: gateway("gemini-2.0-flash"),
+      model: gateway("gemini-3.1-flash-lite"),
       system: `You are a QA hiring manager tailoring interview prep to a specific job description.
 For each question, rewrite it so the candidate must answer in the context of the responsibilities, tools, and domain in the JD.
 Keep the original technical intent. Be concise — one sentence per question. Don't invent technologies absent from the JD.`,

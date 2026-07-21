@@ -46,6 +46,7 @@ export type TaskAnswer = {
   weakAreas: string[];
   followUpQuestions: string[];
   answeredAt: string; // ISO datetime
+  exampleAnswer?: string | null; //example answer demonstrating a strong response to the question
 };
 
 export type PrepState = {

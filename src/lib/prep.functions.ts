@@ -26,7 +26,7 @@ export const analyzeResume = createServerFn({ method: "POST" })
 
     let resumeText = data.text ?? "";
     if (data.pdfBase64 && !resumeText) {
-      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
@@ -53,7 +53,7 @@ export const analyzeResume = createServerFn({ method: "POST" })
 
     const gateway = createGeminiProvider(key);
     const result = await generateText({
-      model: gateway("gemini-2.0-flash"),
+      model: gateway("gemini-3.1-flash-lite"),
       system: `You are an experienced hiring manager analyzing a resume for any profession. Be specific and honest.
 - yearsExperience: estimate years of professional experience (integer, best guess).
 - skills: concrete skills present — technical, tools, soft skills, methodologies, languages. Max 20.
@@ -93,7 +93,7 @@ export const analyzeJd = createServerFn({ method: "POST" })
     const gateway = createGeminiProvider(key);
 
     const result = await generateText({
-      model: gateway("gemini-2.0-flash"),
+      model: gateway("gemini-3.1-flash-lite"),
       system: `You are an expert interview coach analyzing a job description for ANY profession (engineering, marketing, finance, healthcare, design, sales, operations, etc.). Extract structured requirements.
 
 Return:
@@ -149,7 +149,7 @@ export const generatePlan = createServerFn({ method: "POST" })
     const gateway = createGeminiProvider(key);
 
     const result = await generateText({
-      model: gateway("gemini-2.0-flash"),
+      model: gateway("gemini-3.1-flash-lite"),
       system: `You are an interview preparation coach. Build a day-by-day preparation schedule for ANY profession based on the job description, the candidate's background, and their time budget.
 
 Rules:
@@ -200,6 +200,7 @@ const EvalSchema = z.object({
   feedback: z.string().max(1200),
   weakAreas: z.array(z.string()).max(6),
   followUpQuestions: z.array(z.string()).max(4),
+  exampleAnswer: z.string().max(300).nullable(),
 });
 
 export const evaluateAnswer = createServerFn({ method: "POST" })
@@ -210,14 +211,15 @@ export const evaluateAnswer = createServerFn({ method: "POST" })
     const gateway = createGeminiProvider(key);
 
     const result = await generateText({
-      model: gateway("gemini-2.0-flash"),
+      model: gateway("gemini-3.1-flash-lite"),
       system: `You are a rigorous but supportive interview coach. Evaluate the candidate's answer to a real interview question. Be honest, concrete, and specific to the role.
 
 Return:
 - score: 0-10 (0-3 poor/off-topic, 4-6 partial, 7-8 solid, 9-10 excellent + role-tailored).
 - feedback: 2-4 sentences. Call out what was strong, what was missing, and one concrete way to improve.
 - weakAreas: 1-4 short phrases naming underlying gaps (e.g. "STAR structure", "quantifying impact", "SQL window functions"). These will be used to personalize the next study plan.
-- followUpQuestions: 1-3 sharper interview-style follow-ups a real interviewer would ask next, based on gaps or claims made in the answer.`,
+- followUpQuestions: 1-3 sharper interview-style follow-ups a real interviewer would ask next, based on gaps or claims made in the answer.
+- exampleAnswer: a concise example answer (max 300 characters) demonstrating a strong response to the question, role-specific.`,
       prompt: `Focus area: ${data.focusArea ?? "n/a"}
 
 Job description:
@@ -274,7 +276,7 @@ export const refinePlan = createServerFn({ method: "POST" })
       : "n/a";
 
     const result = await generateText({
-      model: gateway("gemini-2.0-flash"),
+      model: gateway("gemini-3.1-flash-lite"),
       system: `You are an interview coach revising a candidate's remaining study plan based on how they actually performed on practice questions.
 
 Rules:
@@ -319,6 +321,7 @@ const TaskAnswerSchema = z.object({
   feedback: z.string(),
   weakAreas: z.array(z.string()),
   followUpQuestions: z.array(z.string()),
+  exampleAnswer: z.string().nullable().optional(),
   answeredAt: z.string(),
 });
 

@@ -1,43 +1,218 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Code2, Database, PlayCircle } from "lucide-react";
-import { JobDescriptionPanel } from "@/components/JobDescription";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { JobDescriptionPanel, loadJobDescription } from "@/components/JobDescription";
+import { analyzeJd, evaluateAnswer } from "@/lib/prep.functions";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { VoiceInput } from "@/components/VoiceInput";
 
 export const Route = createFileRoute("/practice/")({
   head: () => ({
     meta: [
       { title: "Practice — qa.repl" },
-      { name: "description", content: "Pick a track: API, SQL or Playwright." },
+      { name: "description", content: "Practice interview questions generated from your saved job description and get scored feedback." },
     ],
   }),
   component: PracticeIndex,
 });
 
-const tracks = [
-  { to: "/practice/api", icon: Code2, name: "api", desc: "REST, status codes, auth, contracts, rate limits" },
-  { to: "/practice/sql", icon: Database, name: "sql", desc: "Joins, aggregates, window functions, optimization" },
-  { to: "/practice/playwright", icon: PlayCircle, name: "playwright", desc: "Locators, auto-wait, network mocking, parallelism" },
-] as const;
+type PracticeResult = {
+  score: number;
+  feedback: string;
+  weakAreas: string[];
+  followUpQuestions: string[];
+  exampleAnswer: string | null;
+};
+
+type JdAnalysis = {
+  likelyQuestions?: string[];
+};
 
 function PracticeIndex() {
+  const [jd, setJd] = useState("");
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [analysis, setAnalysis] = useState<JdAnalysis | null>(null);
+  const [result, setResult] = useState<PracticeResult | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  useEffect(() => {
+    setJd(loadJobDescription());
+  }, []);
+
+  async function generateQuestions() {
+    if (!jd.trim()) {
+      toast.error("Add your job description first so questions can be tailored to the role.");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const data = await analyzeJd({
+        data: {
+          resumeAnalysis: null,
+          jobDescription: jd.trim(),
+        },
+      });
+      const generated = (data?.likelyQuestions ?? []).filter(Boolean).slice(0, 6);
+      if (!generated.length) {
+        throw new Error("No practice questions were generated from this JD.");
+      }
+
+      setAnalysis(data as JdAnalysis);
+      setQuestions(generated);
+      setCurrentQuestionIndex(0);
+      setAnswer("");
+      setResult(null);
+      toast.success("Practice questions generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate practice questions");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function submitAnswer() {
+    if (!answer.trim()) {
+      toast.error("Type an answer before submitting it.");
+      return;
+    }
+
+    const question = questions[currentQuestionIndex];
+    if (!question) return;
+
+    setIsEvaluating(true);
+    try {
+      const evaluation = await evaluateAnswer({
+        data: {
+          question,
+          answer: answer.trim(),
+          jobDescription: jd.trim(),
+          jdAnalysis: analysis ?? null,
+          resumeAnalysis: null,
+        },
+      });
+      setResult(evaluation as PracticeResult);
+      toast.success("Answer graded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to grade your answer");
+    } finally {
+      setIsEvaluating(false);
+    }
+  }
+
+  function resetPractice() {
+    setQuestions([]);
+    setCurrentQuestionIndex(0);
+    setAnswer("");
+    setAnalysis(null);
+    setResult(null);
+  }
+
+  const currentQuestion = questions[currentQuestionIndex] ?? "";
+  const isLastQuestion = currentQuestionIndex >= questions.length - 1;
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
-      <h1 className="font-mono text-2xl font-bold prompt">ls ./tracks</h1>
-      <JobDescriptionPanel className="mt-6" />
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tracks.map((t) => (
-          <Link
-            key={t.name}
-            to="/practice/$category"
-            params={{ category: t.name }}
-            search={{}}
-            className="surface rounded-lg border border-border p-6 hover:border-terminal/40 hover:-translate-y-0.5 transition"
-          >
-            <t.icon className="h-6 w-6 text-terminal" />
-            <h2 className="mt-4 font-mono text-lg">/{t.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t.desc}</p>
-          </Link>
-        ))}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.3em] text-terminal">mock interview</p>
+          <h1 className="mt-2 font-mono text-2xl font-bold prompt">practice ./interview</h1>
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Questions are generated from the job description you already saved in Prep. Answer each one, and we’ll score it on a 1–10 scale with concrete feedback.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={resetPractice} disabled={isGenerating || isEvaluating}>
+          <RotateCcw className="mr-2 h-3.5 w-3.5" /> Start over
+        </Button>
       </div>
+
+      <JobDescriptionPanel className="mt-6" onChange={(value) => {
+        setJd(value);
+        if (!value.trim()) {
+          resetPractice();
+        }
+      }} />
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Button onClick={generateQuestions} disabled={isGenerating || isEvaluating || !jd.trim()}>
+          {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          {questions.length ? "Generate a new set" : "Generate practice questions"}
+        </Button>
+        {!jd.trim() && <span className="text-sm text-muted-foreground">Save a job description above to generate tailored questions.</span>}
+      </div>
+
+      {questions.length > 0 && (
+        <div className="mt-8 space-y-6">
+          <div className="surface rounded-2xl border border-border p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-terminal">question {currentQuestionIndex + 1}/{questions.length}</p>
+                <h2 className="mt-2 text-xl font-semibold">{currentQuestion}</h2>
+              </div>
+              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
+                {result ? "graded" : "awaiting answer"}
+              </span>
+            </div>
+
+            {!result ? (
+              <div className="mt-6 space-y-3">
+                <VoiceInput
+                  value={answer}
+                  onChange={setAnswer}
+                  placeholder="Type your answer here…"
+                  className="min-h-[180px] font-mono text-sm"
+                  rows={8}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={submitAnswer} disabled={isEvaluating || !answer.trim()}>
+                    {isEvaluating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Submit answer
+                  </Button>
+                  <Button variant="ghost" onClick={() => setAnswer("")} disabled={isEvaluating || !answer.trim()}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4 rounded-xl border border-terminal/20 bg-terminal/5 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full bg-foreground px-3 py-1 text-sm font-semibold text-background">
+                    Score: {result.score}/10
+                  </span>
+                  <span className="text-sm text-muted-foreground">{result.weakAreas.length > 0 ? `Focus areas: ${result.weakAreas.join(", ")}` : "Strong answer structure"}</span>
+                </div>
+                <p className="text-sm leading-7 text-foreground">{result.feedback}</p>
+                {result.exampleAnswer && (
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-terminal">example answer</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{result.exampleAnswer}</p>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {!isLastQuestion ? (
+                    <Button onClick={() => {
+                      setCurrentQuestionIndex((i) => i + 1);
+                      setAnswer("");
+                      setResult(null);
+                    }}>
+                      Next question
+                    </Button>
+                  ) : (
+                    <Button onClick={generateQuestions} disabled={isGenerating}>
+                      {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                      Generate another set
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

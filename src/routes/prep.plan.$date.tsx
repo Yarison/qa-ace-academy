@@ -11,8 +11,8 @@ import {
 } from "@/lib/prep-storage";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { VoiceInput } from "@/components/VoiceInput";
 
 export const Route = createFileRoute("/prep/plan/$date")({
   head: ({ params }) => ({
@@ -100,6 +100,7 @@ function DayDetail() {
         feedback: result.feedback,
         weakAreas: result.weakAreas,
         followUpQuestions: result.followUpQuestions,
+        exampleAnswer: result.exampleAnswer,
         answeredAt: new Date().toISOString(),
       };
       const existing = state.answers?.[date] ?? [];
@@ -277,6 +278,12 @@ function QuestionCard({
                 </ul>
               </div>
             )}
+            {answered.exampleAnswer && (
+              <div className="mt-3">
+               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Example answer</p>
+               <p className="mt-1 text-sm italic">{answered.exampleAnswer}</p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => { setDraft(answered.answer); setEditing(true); }}>
@@ -289,9 +296,9 @@ function QuestionCard({
         </div>
       ) : (
         <div className="mt-4 space-y-2">
-          <Textarea
+          <VoiceInput
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={setDraft}
             placeholder="Type your answer. Be specific — use the STAR format for behavioral questions."
             rows={6}
           />

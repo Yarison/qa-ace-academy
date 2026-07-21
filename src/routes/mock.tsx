@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { Send, Loader2, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { VoiceInput } from "@/components/VoiceInput";
 
 export const Route = createFileRoute("/mock")({
   head: () => ({
@@ -163,12 +164,17 @@ function MockPage() {
           </div>
 
           <form onSubmit={submit} className="mt-3 flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your answer…"
-              className="flex-1 rounded border border-border bg-card px-3 py-2 font-mono text-sm outline-none focus:border-terminal/60"
-            />
+            <div className="flex-1">
+              <VoiceInput
+                value={input}
+                onChange={setInput}
+                placeholder="Type your answer…"
+                multiline={false}
+                className="flex-1 rounded border border-border bg-card px-3 py-2 font-mono text-sm outline-none focus:border-terminal/60"
+                containerClassName="w-full"
+                inputProps={{ className: "flex-1 rounded border border-border bg-card px-3 py-2 font-mono text-sm outline-none focus:border-terminal/60" }}
+              />
+            </div>
             <button type="submit" disabled={status === "streaming"} className="inline-flex items-center gap-1.5 rounded bg-terminal px-3 py-2 font-mono text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50">
               <Send className="h-3.5 w-3.5" /> send
             </button>
