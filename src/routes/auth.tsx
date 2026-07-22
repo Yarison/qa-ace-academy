@@ -58,32 +58,34 @@ function AuthPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md items-center px-4">
-      <div className="surface w-full rounded-lg border border-border p-6">
-        <div className="flex items-center gap-2 font-mono text-terminal">
-          <Terminal className="h-4 w-4" /> {mode === "signin" ? "auth login" : "auth register"}
-        </div>
-        <form onSubmit={submit} className="mt-6 space-y-4 font-mono text-sm">
-          <label className="block">
-            <span className="text-xs text-muted-foreground">email</span>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 outline-none focus:border-terminal/60" />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">password</span>
-            <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 outline-none focus:border-terminal/60" />
-          </label>
-          <button type="submit" disabled={loading}
-            className="inline-flex w-full items-center justify-center gap-2 rounded bg-terminal py-2 text-primary-foreground hover:opacity-90 disabled:opacity-50">
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {mode === "signin" ? "$ login" : "$ register"}
+    <main className="page-shell px-4 py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md items-center justify-center">
+        <div className="page-card w-full p-6 sm:p-8">
+          <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+            <Terminal className="h-4 w-4 text-[var(--text-secondary)]" /> {mode === "signin" ? "auth login" : "auth register"}
+          </div>
+          <form onSubmit={submit} className="mt-6 space-y-4 text-sm">
+            <label className="block">
+              <span className="text-xs uppercase tracking-[0.24em] text-[var(--text-secondary)]">email</span>
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-[var(--card-border)] bg-[var(--bg-base)] px-3 py-2.5 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)]" />
+            </label>
+            <label className="block">
+              <span className="text-xs uppercase tracking-[0.24em] text-[var(--text-secondary)]">password</span>
+              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-[var(--card-border)] bg-[var(--bg-base)] px-3 py-2.5 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)]" />
+            </label>
+            <button type="submit" disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-50">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {mode === "signin" ? "Log in" : "Create account"}
+            </button>
+          </form>
+          <button onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
+            className="mt-4 w-full text-center text-xs font-medium text-[var(--text-secondary)] transition hover:text-[var(--accent)]">
+            {mode === "signin" ? "→ create account" : "→ have an account? sign in"}
           </button>
-        </form>
-        <button onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
-          className="mt-4 w-full text-center font-mono text-xs text-muted-foreground hover:text-terminal">
-          {mode === "signin" ? "→ create account" : "→ have an account? sign in"}
-        </button>
+        </div>
       </div>
     </main>
   );

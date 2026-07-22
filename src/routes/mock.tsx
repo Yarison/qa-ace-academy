@@ -1,189 +1,336 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import { Send, Loader2, Save } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Play, RotateCcw, Send } from "lucide-react";
 import { toast } from "sonner";
+import { JobDescriptionPanel, loadJobDescription } from "@/components/JobDescription";
+import { Button } from "@/components/ui/button";
 import { VoiceInput } from "@/components/VoiceInput";
+import { analyzeJd, evaluateAnswer } from "@/lib/prep.functions";
+
+type MockQuestion = {
+  question: string;
+  timeLimitSeconds: number;
+  kind: "behavioral" | "technical" | "mixed";
+};
+
+type MockResult = {
+  question: string;
+  answer: string;
+  score: number;
+  feedback: string;
+  exampleAnswer: string | null;
+  weakAreas: string[];
+};
 
 export const Route = createFileRoute("/mock")({
   head: () => ({
     meta: [
       { title: "Mock interview — qa.repl" },
-      { name: "description", content: "AI-powered mock interviews for QA engineers. Pick a topic, get drilled, receive instant feedback." },
+      { name: "description", content: "Run a timed mock interview tailored to your saved job description and get a full report at the end." },
     ],
   }),
   component: MockPage,
 });
 
-const TOPICS = [
-  { id: "general", label: "General QA (API + SQL + Playwright)" },
-  { id: "api", label: "API testing" },
-  { id: "sql", label: "SQL" },
-  { id: "playwright", label: "Playwright" },
-  { id: "manual", label: "Manual testing & test strategy" },
-];
-
 function MockPage() {
-  const [topic, setTopic] = useState(TOPICS[0].id);
-  const [started, setStarted] = useState(false);
-  const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const tokenRef = useRef<string | null>(null);
+  const [jd, setJd] = useState("");
+  const [totalMinutes, setTotalMinutes] = useState(20);
+  const [sessionState, setSessionState] = useState<"setup" | "running" | "complete">("setup");
+  const [questions, setQuestions] = useState<MockQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [results, setResults] = useState<MockResult[]>([]);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      tokenRef.current = data.session?.access_token ?? null;
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      tokenRef.current = session?.access_token ?? null;
-    });
-    return () => subscription.unsubscribe();
+    setJd(loadJobDescription());
   }, []);
 
-  const { messages, sendMessage, status, error, setMessages } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: () => ({
-        topic: TOPICS.find((t) => t.id === topic)?.label ?? topic,
-        jobDescription: (typeof window !== "undefined" ? localStorage.getItem("qa.repl.jd.v1") : null) ?? undefined,
-      }),
-      headers: (): Record<string, string> => {
-        const token = tokenRef.current;
-        return token ? { Authorization: `Bearer ${token}` } : {};
-      },
-    }),
-  });
+  const currentQuestion = questions[currentQuestionIndex] ?? null;
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  const buildPlan = useCallback((analysis: { likelyQuestions?: string[] } | null, totalMinutes: number) => {
+    const rawQuestions = (analysis?.likelyQuestions ?? []).filter(Boolean).slice(0, 6);
+    const fallback = [
+      "Tell me about a time you had to resolve a difficult bug or issue under pressure.",
+      "How would you approach testing a new API endpoint end to end?",
+      "Describe how you would communicate a risk to a teammate or stakeholder.",
+    ];
+    const selected = rawQuestions.length ? rawQuestions : fallback;
+    const count = Math.min(6, Math.max(4, Math.round(totalMinutes / 5)));
+    const base = totalMinutes / count;
 
-  function start() {
-    setStarted(true);
-    setMessages([]);
-    setTimeout(() => sendMessage({ text: "Please start the interview." }), 50);
-  }
+    return selected.slice(0, count).map((question) => {
+      const kind: MockQuestion["kind"] = /time|situation|conflict|lead|team|stakeholder|customer/i.test(question)
+        ? "behavioral"
+        : /how would|design|debug|troubleshoot|explain|test|api|sql|playwright|query/i.test(question)
+          ? "technical"
+          : "mixed";
+      const multiplier = kind === "behavioral" ? 1.35 : kind === "technical" ? 0.95 : 1.15;
+      const minutes = Math.max(2, Math.round(base * multiplier));
+      return {
+        question,
+        timeLimitSeconds: Math.min(600, minutes * 60),
+        kind,
+      };
+    });
+  }, []);
 
-  async function saveSession() {
-    const { data: sess } = await supabase.auth.getSession();
-    if (!sess.session) {
-      toast.error("Sign in to save sessions");
+  const totalAllocatedSeconds = useMemo(() => questions.reduce((sum, q) => sum + q.timeLimitSeconds, 0), [questions]);
+
+  const startSession = useCallback(async () => {
+    if (!jd.trim()) {
+      toast.error("Save a job description in Prep first so the mock interview can be tailored to it.");
       return;
     }
-    const transcript = messages.map((m) => ({
-      role: m.role,
-      content: m.parts
-        .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => p.text)
-        .join(""),
-    }));
-    const { error: err } = await supabase.from("mock_sessions").insert({
-      user_id: sess.session.user.id,
-      topic: TOPICS.find((t) => t.id === topic)?.label ?? topic,
-      transcript,
-    });
-    if (err) toast.error(err.message);
-    else toast.success("Saved to history");
-  }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!input.trim() || status === "streaming") return;
-    sendMessage({ text: input });
-    setInput("");
+    const parsedMinutes = Number(totalMinutes);
+    if (!Number.isFinite(parsedMinutes) || parsedMinutes < 5 || parsedMinutes > 90) {
+      toast.error("Choose a mock interview length between 5 and 90 minutes.");
+      return;
+    }
+
+    setIsPreparing(true);
+    try {
+      const analysis = await analyzeJd({
+        data: {
+          resumeAnalysis: null,
+          jobDescription: jd.trim(),
+        },
+      });
+      const plan = buildPlan(analysis, parsedMinutes);
+      if (!plan.length) throw new Error("No questions were generated.");
+      setQuestions(plan);
+      setAnswers([]);
+      setResults([]);
+      setCurrentQuestionIndex(0);
+      setAnswer("");
+      setTimeLeft(plan[0].timeLimitSeconds);
+      setSessionState("running");
+      toast.success("Mock interview ready");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to start the mock interview");
+    } finally {
+      setIsPreparing(false);
+    }
+  }, [jd, totalMinutes, buildPlan]);
+
+  const finishSession = useCallback(async (allAnswers: string[]) => {
+    setIsFinishing(true);
+    try {
+      const evaluations = await Promise.all(
+        questions.map((q, index) =>
+          evaluateAnswer({
+            data: {
+              question: q.question,
+              answer: (allAnswers[index] ?? "").trim(),
+              jobDescription: jd.trim(),
+              jdAnalysis: null,
+              resumeAnalysis: null,
+            },
+          }),
+        ),
+      );
+
+      const report: MockResult[] = evaluations.map((result, index) => ({
+        question: questions[index].question,
+        answer: allAnswers[index] ?? "",
+        score: result.score,
+        feedback: result.feedback,
+        exampleAnswer: result.exampleAnswer,
+        weakAreas: result.weakAreas,
+      }));
+
+      setResults(report);
+      setSessionState("complete");
+      toast.success("Mock interview complete");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to grade the mock interview");
+    } finally {
+      setIsFinishing(false);
+    }
+  }, [jd, questions]);
+
+  const submitCurrentAnswer = useCallback(async (autoSubmitted = false) => {
+    if (!currentQuestion) return;
+
+    const trimmed = answer.trim();
+    const nextAnswers = [...answers, trimmed];
+    setAnswers(nextAnswers);
+
+    if (currentQuestionIndex === questions.length - 1) {
+      await finishSession(nextAnswers);
+      return;
+    }
+
+    const nextIndex = currentQuestionIndex + 1;
+    setCurrentQuestionIndex(nextIndex);
+    setAnswer("");
+    setTimeLeft(questions[nextIndex].timeLimitSeconds);
+
+    if (!autoSubmitted) {
+      toast.success("Answer recorded");
+    }
+  }, [answer, answers, currentQuestion, currentQuestionIndex, finishSession, questions]);
+
+  useEffect(() => {
+    if (sessionState !== "running" || !currentQuestion || timeLeft === null) return;
+
+    if (timeLeft <= 0) {
+      setTimeLeft(0);
+      void submitCurrentAnswer(true);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setTimeLeft((prev) => (prev === null ? null : prev - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [sessionState, currentQuestion, timeLeft, submitCurrentAnswer]);
+
+  function resetSession() {
+    setSessionState("setup");
+    setQuestions([]);
+    setCurrentQuestionIndex(0);
+    setAnswer("");
+    setAnswers([]);
+    setResults([]);
+    setTimeLeft(null);
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-3.5rem)] max-w-3xl flex-col px-4 py-6">
-      <header className="mb-4">
-        <h1 className="font-mono text-2xl font-bold prompt">interview --topic</h1>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {TOPICS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => !started && setTopic(t.id)}
-              disabled={started}
-              className={`rounded border px-2.5 py-1 font-mono text-xs transition ${
-                topic === t.id
-                  ? "border-terminal/60 bg-terminal/15 text-terminal"
-                  : "border-border bg-card text-muted-foreground hover:border-terminal/30"
-              } ${started ? "opacity-60" : ""}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+    <main className="page-shell px-4 py-10">
+      <div className="mx-auto max-w-4xl">
+      <header className="mb-8">
+        <p className="page-eyebrow">Full session</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">Interview practice, timed.</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+          This uses the job description you already saved in Prep. Pick a total time, answer each question one at a time, and get a full report after the session.
+        </p>
       </header>
 
-      {!started ? (
-        <div className="surface flex flex-1 flex-col items-center justify-center rounded-lg border border-border p-10 text-center">
-          <p className="max-w-md text-sm text-muted-foreground">
-            Pick a topic above. The AI interviewer will ask 5 questions, score each answer, and give a final report.
-          </p>
-          <button onClick={start} className="mt-6 rounded bg-terminal px-5 py-2 font-mono text-sm text-primary-foreground hover:opacity-90 glow">
-            $ ./start-interview
-          </button>
-        </div>
-      ) : (
-        <>
-          <div ref={scrollRef} className="surface flex-1 space-y-4 overflow-y-auto rounded-lg border border-border p-4">
-            {messages.map((m) => {
-              const text = m.parts
-                .filter((p): p is { type: "text"; text: string } => p.type === "text")
-                .map((p) => p.text)
-                .join("");
-              return (
-                <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                    m.role === "user"
-                      ? "bg-terminal/15 border border-terminal/30 text-foreground"
-                      : "bg-background border border-border"
-                  }`}>
-                    <div className="mb-1 font-mono text-[10px] uppercase text-muted-foreground">
-                      {m.role === "user" ? "you" : "interviewer"}
-                    </div>
-                    <div className="prose prose-sm max-w-none prose-pre:bg-card prose-pre:border prose-pre:border-border prose-code:text-terminal">
-                      <ReactMarkdown>{text}</ReactMarkdown>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {status === "streaming" && messages[messages.length - 1]?.role === "user" && (
-              <div className="flex justify-start">
-                <div className="rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-muted-foreground">
-                  <Loader2 className="inline h-3 w-3 animate-spin" /> thinking…
-                </div>
-              </div>
-            )}
-            {error && <div className="rounded border border-destructive/40 bg-destructive/10 p-2 font-mono text-xs text-destructive">{error.message}</div>}
-          </div>
-
-          <form onSubmit={submit} className="mt-3 flex gap-2">
-            <div className="flex-1">
-              <VoiceInput
-                value={input}
-                onChange={setInput}
-                placeholder="Type your answer…"
-                multiline={false}
-                className="flex-1 rounded border border-border bg-card px-3 py-2 font-mono text-sm outline-none focus:border-terminal/60"
-                containerClassName="w-full"
-                inputProps={{ className: "flex-1 rounded border border-border bg-card px-3 py-2 font-mono text-sm outline-none focus:border-terminal/60" }}
-              />
+      <div className="page-card p-6">
+        {sessionState === "setup" ? (
+          <div className="space-y-5">
+<div className="page-card-soft p-4 text-sm text-[var(--text-secondary)]">
+              <p className="font-medium text-[var(--text-primary)]">Using your saved Prep job description</p>
+              <p className="mt-1">{jd.trim() ? "The interview questions will be tailored to the JD already saved for this app." : "Save a job description in Prep first to tailor the questions."}</p>
             </div>
-            <button type="submit" disabled={status === "streaming"} className="inline-flex items-center gap-1.5 rounded bg-terminal px-3 py-2 font-mono text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50">
-              <Send className="h-3.5 w-3.5" /> send
-            </button>
-            <button type="button" onClick={saveSession} className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-2 font-mono text-sm hover:border-terminal/40">
-              <Save className="h-3.5 w-3.5" /> save
-            </button>
-          </form>
-        </>
-      )}
+
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-primary)]">Total time for the mock interview</label>
+              <div className="mt-2 flex max-w-xs items-center gap-3">
+                <input
+                  type="number"
+                  min={5}
+                  max={90}
+                  value={totalMinutes}
+                  onChange={(e) => setTotalMinutes(Math.max(5, Math.min(90, Number(e.target.value || 5))))}
+                  className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                />
+                <span className="text-sm text-[var(--text-secondary)]">minutes</span>
+              </div>
+            </div>
+
+            <Button className="rounded-full" onClick={startSession} disabled={isPreparing || !jd.trim()}>
+              {isPreparing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              Start mock interview
+            </Button>
+          </div>
+        ) : sessionState === "running" && currentQuestion ? (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="page-eyebrow">question {currentQuestionIndex + 1}/{questions.length}</p>
+                <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">{currentQuestion.question}</h2>
+              </div>
+              <div className="rounded-full border border-[var(--card-border)] bg-[var(--bg-base)] px-3 py-1 text-sm font-medium text-[var(--text-primary)]">
+                {String(Math.floor(timeLeft ?? 0 / 60)).padStart(2, "0")}:{String((timeLeft ?? 0) % 60).padStart(2, "0")}
+              </div>
+            </div>
+
+            <div className="page-card-soft p-4 text-sm text-[var(--text-secondary)]">
+              <p className="font-medium text-[var(--text-primary)]">Time allocation</p>
+              <p className="mt-1">This question is allotted about {Math.round((currentQuestion.timeLimitSeconds || 60) / 60)} minute{Math.round((currentQuestion.timeLimitSeconds || 60) / 60) === 1 ? "" : "s"}.</p>
+            </div>
+
+            <VoiceInput
+              value={answer}
+              onChange={setAnswer}
+              placeholder="Type your answer here…"
+              className="min-h-[180px] text-sm"
+              rows={8}
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <Button className="rounded-full" onClick={() => void submitCurrentAnswer(false)} disabled={isFinishing}>
+                {isFinishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Submit answer
+              </Button>
+              <Button className="rounded-full" variant="ghost" onClick={() => setAnswer("")} disabled={isFinishing || !answer.trim()}>
+                Clear
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="page-eyebrow">session complete</p>
+                <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">Your mock interview report</h2>
+              </div>
+              <Button className="rounded-full" variant="outline" size="sm" onClick={resetSession}>
+                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Start over
+              </Button>
+            </div>
+
+            <div className="page-card-soft p-4 text-sm text-[var(--text-secondary)]">
+              <p className="font-medium text-[var(--text-primary)]">Total planned time</p>
+              <p className="mt-1">{Math.round(totalAllocatedSeconds / 60)} minutes across {questions.length} questions.</p>
+            </div>
+
+            <div className="space-y-4">
+              {results.map((item, index) => (
+                <div key={`${item.question}-${index}`} className="page-card-soft p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="font-medium text-[var(--text-primary)]">{index + 1}. {item.question}</p>
+                    <span className="rounded-full border border-[var(--card-border)] bg-[var(--bg-base)] px-2.5 py-1 text-sm font-semibold text-[var(--text-primary)]">
+                      {item.score}/10
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+                    <p className="font-medium text-[var(--text-primary)]">Your answer</p>
+                    <p className="whitespace-pre-wrap">{item.answer || "No answer submitted."}</p>
+                  </div>
+                  <div className="mt-3 rounded-lg border border-[var(--card-border)] bg-[var(--bg-base)] p-3 text-sm text-[var(--text-secondary)]">
+                    <p className="font-medium text-[var(--text-primary)]">How you should have answered</p>
+                    <p className="mt-1">{item.feedback}</p>
+                  </div>
+                  {item.exampleAnswer && (
+                    <div className="mt-3 rounded-lg border border-[var(--card-border)] bg-[var(--bg-base)] p-3 text-sm text-[var(--text-secondary)]">
+                      <p className="font-medium text-[var(--text-primary)]">Example answer</p>
+                      <p className="mt-1">{item.exampleAnswer}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6">
+        <JobDescriptionPanel className="mt-6" onChange={(value) => {
+          setJd(value);
+          if (!value.trim()) {
+            resetSession();
+          }
+        }} />
+      </div>
+      </div>
     </main>
   );
 }

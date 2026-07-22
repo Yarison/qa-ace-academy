@@ -116,16 +116,17 @@ function PracticeIndex() {
   const isLastQuestion = currentQuestionIndex >= questions.length - 1;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12">
+    <main className="page-shell px-4 py-12">
+      <div className="mx-auto max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.3em] text-terminal">mock interview</p>
-          <h1 className="mt-2 font-mono text-2xl font-bold prompt">practice ./interview</h1>
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+          <p className="page-eyebrow">Question drills.</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">Practice interview questions.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
             Questions are generated from the job description you already saved in Prep. Answer each one, and we’ll score it on a 1–10 scale with concrete feedback.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={resetPractice} disabled={isGenerating || isEvaluating}>
+        <Button className="rounded-full" variant="outline" size="sm" onClick={resetPractice} disabled={isGenerating || isEvaluating}>
           <RotateCcw className="mr-2 h-3.5 w-3.5" /> Start over
         </Button>
       </div>
@@ -137,8 +138,8 @@ function PracticeIndex() {
         }
       }} />
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Button onClick={generateQuestions} disabled={isGenerating || isEvaluating || !jd.trim()}>
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        <Button className="rounded-full" onClick={generateQuestions} disabled={isGenerating || isEvaluating || !jd.trim()}>
           {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
           {questions.length ? "Generate a new set" : "Generate practice questions"}
         </Button>
@@ -147,13 +148,13 @@ function PracticeIndex() {
 
       {questions.length > 0 && (
         <div className="mt-8 space-y-6">
-          <div className="surface rounded-2xl border border-border p-6">
+          <div className="page-card p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-terminal">question {currentQuestionIndex + 1}/{questions.length}</p>
-                <h2 className="mt-2 text-xl font-semibold">{currentQuestion}</h2>
+                <p className="page-eyebrow">question {currentQuestionIndex + 1}/{questions.length}</p>
+                <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">{currentQuestion}</h2>
               </div>
-              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
+              <span className="rounded-full border border-[var(--card-border)] bg-[var(--bg-base)] px-3 py-1 text-xs text-[var(--text-secondary)]">
                 {result ? "graded" : "awaiting answer"}
               </span>
             </div>
@@ -164,37 +165,37 @@ function PracticeIndex() {
                   value={answer}
                   onChange={setAnswer}
                   placeholder="Type your answer here…"
-                  className="min-h-[180px] font-mono text-sm"
+                  className="min-h-[180px] text-sm"
                   rows={8}
                 />
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={submitAnswer} disabled={isEvaluating || !answer.trim()}>
+                  <Button className="rounded-full" onClick={submitAnswer} disabled={isEvaluating || !answer.trim()}>
                     {isEvaluating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Submit answer
                   </Button>
-                  <Button variant="ghost" onClick={() => setAnswer("")} disabled={isEvaluating || !answer.trim()}>
+                  <Button className="rounded-full" variant="ghost" onClick={() => setAnswer("")} disabled={isEvaluating || !answer.trim()}>
                     Clear
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="mt-6 space-y-4 rounded-xl border border-terminal/20 bg-terminal/5 p-4">
+              <div className="mt-6 space-y-4 rounded-xl border border-[var(--card-border)] bg-[var(--bg-base)] p-4">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="rounded-full bg-foreground px-3 py-1 text-sm font-semibold text-background">
+                  <span className="rounded-full bg-[var(--text-primary)] px-3 py-1 text-sm font-semibold text-background">
                     Score: {result.score}/10
                   </span>
-                  <span className="text-sm text-muted-foreground">{result.weakAreas.length > 0 ? `Focus areas: ${result.weakAreas.join(", ")}` : "Strong answer structure"}</span>
+                  <span className="text-sm text-[var(--text-secondary)]">{result.weakAreas.length > 0 ? `Focus areas: ${result.weakAreas.join(", ")}` : "Strong answer structure"}</span>
                 </div>
-                <p className="text-sm leading-7 text-foreground">{result.feedback}</p>
+                <p className="text-sm leading-7 text-[var(--text-primary)]">{result.feedback}</p>
                 {result.exampleAnswer && (
-                  <div className="rounded-lg border border-border bg-background/70 p-3">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-terminal">example answer</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{result.exampleAnswer}</p>
+                  <div className="rounded-lg border border-[var(--card-border)] bg-[var(--bg-base)] p-3">
+                    <p className="page-eyebrow">example answer</p>
+                    <p className="mt-2 text-sm text-[var(--text-secondary)]">{result.exampleAnswer}</p>
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
                   {!isLastQuestion ? (
-                    <Button onClick={() => {
+                    <Button className="rounded-full" onClick={() => {
                       setCurrentQuestionIndex((i) => i + 1);
                       setAnswer("");
                       setResult(null);
@@ -202,7 +203,7 @@ function PracticeIndex() {
                       Next question
                     </Button>
                   ) : (
-                    <Button onClick={generateQuestions} disabled={isGenerating}>
+                    <Button className="rounded-full" onClick={generateQuestions} disabled={isGenerating}>
                       {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                       Generate another set
                     </Button>
@@ -213,6 +214,7 @@ function PracticeIndex() {
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }
