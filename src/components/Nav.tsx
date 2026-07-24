@@ -31,10 +31,10 @@ export function Nav() {
               key={l.to}
               to={l.to}
               search={{}}
-              className="rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-full px-3 py-1.5 border border-transparent text-muted-foreground transition-colors hover:text-foreground"
               activeProps={{
                 className:
-                  "rounded-full px-3 py-1.5 text-foreground bg-accent",
+                  "rounded-full px-3 py-1.5 text-blue-900 bg-blue-100 border border-blue-500 dark:text-blue-100 dark:bg-blue-900 dark:border-blue-400",
               }}
             >
               {l.label}
@@ -47,10 +47,10 @@ export function Nav() {
               <Link
                 to="/history"
                 search={{ next: "" }}
-                className="hidden rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+                className="rounded-full px-3 py-1.5 border border-transparent text-muted-foreground transition-colors hover:text-foreground"
                 activeProps={{
                   className:
-                    "hidden sm:inline-flex rounded-full px-3 py-1.5 text-foreground bg-accent",
+                    "hidden sm:inline-flex rounded-full px-3 py-1.5 text-blue-800 bg-blue-200 border border-blue-600 dark:text-blue-200 dark:bg-blue-950 dark:border-blue-500",
                 }}
               >
                 History

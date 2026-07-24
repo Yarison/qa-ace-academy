@@ -1,15 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { createGeminiProvider } from "@/lib/ai-gateway.server";
+import { checkAndConsumeAiUsage } from "@/lib/ai-usage.server";
 
 // ---------- Resume analysis ----------
 
-const ResumeInput = z.object({
-  text: z.string().trim().min(50).max(20000).optional(),
-  pdfBase64: z.string().max(6_000_000).optional(),
-}).refine((v) => v.text || v.pdfBase64, { message: "Provide text or PDF" });
+const ResumeInput = z
+  .object({
+    text: z.string().trim().min(50).max(20000).optional(),
+    pdfBase64: z.string().max(6_000_000).optional(),
+  })
+  .refine((v) => v.text || v.pdfBase64, { message: "Provide text or PDF" });
 
 const ResumeSchema = z.object({
   yearsExperience: z.number().min(0).max(60),
@@ -19,27 +23,34 @@ const ResumeSchema = z.object({
 });
 
 export const analyzeResume = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
   .inputValidator((data: unknown) => ResumeInput.parse(data))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
 
+    const usage = await checkAndConsumeAiUsage(2);
     let resumeText = data.text ?? "";
     if (data.pdfBase64 && !resumeText) {
-      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: "Extract ALL text content from this resume PDF, preserving section headings and dates. Return only the plain text — no commentary." },
-                { inlineData: { mimeType: "application/pdf", data: data.pdfBase64 } },
-              ],
-            },
-          ],
-        }),
-      });
+      const res = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: "Extract ALL text content from this resume PDF, preserving section headings and dates. Return only the plain text — no commentary.",
+                  },
+                  { inlineData: { mimeType: "application/pdf", data: data.pdfBase64 } },
+                ],
+              },
+            ],
+          }),
+        },
+      );
       if (!res.ok) {
         const body = await res.text();
         throw new Error(`PDF extraction failed (${res.status}): ${body.slice(0, 300)}`);
@@ -63,7 +74,7 @@ export const analyzeResume = createServerFn({ method: "POST" })
       experimental_output: Output.object({ schema: ResumeSchema }),
     });
 
-    return { analysis: result.experimental_output, resumeText };
+    return { analysis: result.experimental_output, resumeText, usage };
   });
 
 // ---------- JD analysis (universal, any profession) ----------
@@ -86,10 +97,12 @@ const JdSchema = z.object({
 });
 
 export const analyzeJd = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
   .inputValidator((data: unknown) => JdInput.parse(data))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(2);
     const gateway = createGeminiProvider(key);
 
     const result = await generateText({
@@ -112,7 +125,7 @@ Every list must be JD-specific — do not return generic filler.`,
       experimental_output: Output.object({ schema: JdSchema }),
     });
 
-    return result.experimental_output;
+    return { ...result.experimental_output, usage };
   });
 
 // ---------- AI-generated study plan ----------
@@ -125,7 +138,6 @@ const PlanDaySchema = z.object({
   estimatedHours: z.number().min(0).max(12),
   questions: z.array(z.string()).max(6).optional(),
 });
-
 
 const PlanInput = z.object({
   jobDescription: z.string().min(10).max(10000),
@@ -142,10 +154,12 @@ const PlanSchema = z.object({
 });
 
 export const generatePlan = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
   .inputValidator((data: unknown) => PlanInput.parse(data))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(5);
     const gateway = createGeminiProvider(key);
 
     const result = await generateText({
@@ -181,7 +195,7 @@ ${JSON.stringify(data.resumeAnalysis)}`,
       experimental_output: Output.object({ schema: PlanSchema }),
     });
 
-    return result.experimental_output.plan;
+    return { plan: result.experimental_output.plan, usage };
   });
 
 // ---------- Answer evaluation ----------
@@ -204,10 +218,12 @@ const EvalSchema = z.object({
 });
 
 export const evaluateAnswer = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
   .inputValidator((data: unknown) => EvalInput.parse(data))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(1);
     const gateway = createGeminiProvider(key);
 
     const result = await generateText({
@@ -239,7 +255,7 @@ Candidate answer:
       experimental_output: Output.object({ schema: EvalSchema }),
     });
 
-    return result.experimental_output;
+    return { ...result.experimental_output, usage };
   });
 
 // ---------- Plan refinement based on answer performance ----------
@@ -253,23 +269,29 @@ const RefineInput = z.object({
   startDate: z.string(),
   remainingDays: z.number().int().min(1).max(60),
   currentPlan: z.array(PlanDaySchema).max(60),
-  answerHistory: z.array(z.object({
-    question: z.string(),
-    score: z.number(),
-    weakAreas: z.array(z.string()),
-    focusArea: z.string().optional(),
-  })).max(200),
+  answerHistory: z
+    .array(
+      z.object({
+        question: z.string(),
+        score: z.number(),
+        weakAreas: z.array(z.string()),
+        focusArea: z.string().optional(),
+      }),
+    )
+    .max(200),
 });
 
 export const refinePlan = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
   .inputValidator((data: unknown) => RefineInput.parse(data))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(5);
     const gateway = createGeminiProvider(key);
 
     const aggregatedWeakAreas = Array.from(
-      new Set(data.answerHistory.flatMap((a) => a.weakAreas))
+      new Set(data.answerHistory.flatMap((a) => a.weakAreas)),
     ).slice(0, 30);
     const avgScore = data.answerHistory.length
       ? (data.answerHistory.reduce((s, a) => s + a.score, 0) / data.answerHistory.length).toFixed(1)
@@ -296,7 +318,10 @@ Aggregated weak areas from past answers (prioritize these):
 ${aggregatedWeakAreas.join(", ") || "(none yet)"}
 
 Recent answered questions (avoid duplicating):
-${data.answerHistory.slice(-20).map((a) => `- [${a.score}/10] ${a.question}`).join("\n")}
+${data.answerHistory
+  .slice(-20)
+  .map((a) => `- [${a.score}/10] ${a.question}`)
+  .join("\n")}
 
 Job description:
 """${data.jobDescription.slice(0, 5000)}"""
@@ -309,7 +334,7 @@ ${JSON.stringify(data.resumeAnalysis)}`,
       experimental_output: Output.object({ schema: PlanSchema }),
     });
 
-    return result.experimental_output.plan;
+    return { plan: result.experimental_output.plan, usage };
   });
 
 // ---------- Persistence (signed-in users only) ----------
@@ -325,25 +350,26 @@ const TaskAnswerSchema = z.object({
   answeredAt: z.string(),
 });
 
-const PrepStateSchema = z.object({
-  resumeText: z.string(),
-  resumeAnalysis: z.union([ResumeSchema, z.null()]),
-  jobDescription: z.string(),
-  jdAnalysis: z.union([JdSchema, z.null()]),
-  interviewDate: z.union([z.string(), z.null()]).optional(),
-  plan: z.array(PlanDaySchema),
-  completed: z.array(z.string()),
-  answers: z.record(z.string(), z.array(TaskAnswerSchema)).optional(),
-}).passthrough();
+const PrepStateSchema = z
+  .object({
+    resumeText: z.string(),
+    resumeAnalysis: z.union([ResumeSchema, z.null()]),
+    jobDescription: z.string(),
+    jdAnalysis: z.union([JdSchema, z.null()]),
+    interviewDate: z.union([z.string(), z.null()]).optional(),
+    plan: z.array(PlanDaySchema),
+    completed: z.array(z.string()),
+    answers: z.record(z.string(), z.array(TaskAnswerSchema)).optional(),
+  })
+  .passthrough();
 
 export const savePrep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => PrepStateSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("prep_sessions")
-      .upsert({
+    const { error } = await supabase.from("prep_sessions").upsert(
+      {
         user_id: userId,
         resume_text: data.resumeText,
         resume_analysis: data.resumeAnalysis,
@@ -353,7 +379,9 @@ export const savePrep = createServerFn({ method: "POST" })
         plan: data.plan,
         completed: data.completed,
         answers: data.answers ?? {},
-      }, { onConflict: "user_id" });
+      },
+      { onConflict: "user_id" },
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -364,7 +392,9 @@ export const loadPrep = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("prep_sessions")
-      .select("resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed, answers")
+      .select(
+        "resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed, answers",
+      )
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -377,7 +407,10 @@ export const loadPrep = createServerFn({ method: "GET" })
       interviewDate: data.interview_date ?? null,
       plan: (data.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
       completed: (data.completed as string[] | null) ?? [],
-      answers: ((data as { answers?: unknown }).answers as Record<string, z.infer<typeof TaskAnswerSchema>[]> | null) ?? {},
+      answers:
+        ((data as { answers?: unknown }).answers as Record<
+          string,
+          z.infer<typeof TaskAnswerSchema>[]
+        > | null) ?? {},
     };
   });
-

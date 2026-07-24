@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, ArrowRight, Sparkles } from "lucide-react";
+import { Loader2, ArrowRight, Sparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { analyzeJd, savePrep, loadPrep } from "@/lib/prep.functions";
 import {
@@ -12,6 +12,7 @@ import {
   type PrepState,
   type ExperienceLevel,
 } from "@/lib/prep-storage";
+import type { AiUsageResult } from "@/lib/ai-usage.server";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -19,7 +20,11 @@ export const Route = createFileRoute("/prep/jd")({
   head: () => ({
     meta: [
       { title: "Step 1 — Job & setup — AI Interview Coach" },
-      { name: "description", content: "Paste the job description and tell us your timeline, hours, and experience level." },
+      {
+        name: "description",
+        content:
+          "Paste the job description and tell us your timeline, hours, and experience level.",
+      },
     ],
   }),
   component: JdStep,
@@ -36,6 +41,7 @@ type DateMode = "date" | "days";
 function JdStep() {
   const navigate = useNavigate();
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [jd, setJd] = useState("");
   const [dateMode, setDateMode] = useState<DateMode>("date");
   const [interviewDate, setInterviewDate] = useState("");
@@ -70,7 +76,9 @@ function JdStep() {
               setDateMode("date");
             }
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     });
   }, []);
@@ -88,7 +96,11 @@ function JdStep() {
     savePrepLocal(next);
     setState(next);
     if (signedIn) {
-      try { await savePrep({ data: next }); } catch { /* ignore */ }
+      try {
+        await savePrep({ data: next });
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -103,12 +115,14 @@ function JdStep() {
     }
     setRunning(true);
     try {
-      const analysis = await analyzeJd({
+      const analysisResult = await analyzeJd({
         data: {
           resumeAnalysis: state.resumeAnalysis,
           jobDescription: jd.trim(),
         },
       });
+      const { usage: analysisUsage, ...analysis } = analysisResult;
+      setUsage(analysisUsage ?? null);
       const next: PrepState = {
         ...state,
         jobDescription: jd.trim(),
@@ -156,8 +170,8 @@ function JdStep() {
         <p className="eyebrow">Step 1</p>
         <h1 className="display-2 mt-2">Where are you interviewing?</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Works for any role — engineering, marketing, healthcare, finance, design. Paste the JD, tell us
-          how long you have, and we'll do the rest.
+          Works for any role — engineering, marketing, healthcare, finance, design. Paste the JD,
+          tell us how long you have, and we'll do the rest.
         </p>
       </header>
 
@@ -208,7 +222,9 @@ function JdStep() {
                   min={1}
                   max={60}
                   value={daysUntil}
-                  onChange={(e) => setDaysUntil(Math.max(1, Math.min(60, parseInt(e.target.value || "1", 10))))}
+                  onChange={(e) =>
+                    setDaysUntil(Math.max(1, Math.min(60, parseInt(e.target.value || "1", 10))))
+                  }
                   className="w-24 rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-terminal/60"
                 />
                 <span className="text-sm text-muted-foreground">days from today</span>
@@ -245,12 +261,19 @@ function JdStep() {
                 onClick={() => setLevel(l.value)}
                 className={`rounded-xl border p-3 text-left transition-colors ${
                   level === l.value
-                    ? "border-foreground bg-accent"
+                    ? "border-blue-500 bg-blue-100 dark:border-blue-400 dark:bg-blue-900"
                     : "border-border bg-background hover:border-foreground/40"
                 }`}
               >
+                {level === l.value && (
+                  <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-blue-700 dark:text-blue-200" />
+                )}
                 <div className="text-sm font-medium">{l.label}</div>
-                <div className="text-xs text-muted-foreground">{l.hint}</div>
+                <div
+                  className={`text-xs ${level === l.value ? "text-accent-foreground/80" : "text-muted-foreground"}`}
+                >
+                  {l.hint}
+                </div>
               </button>
             ))}
           </div>
@@ -258,9 +281,20 @@ function JdStep() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={run} disabled={running}>
-            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {running ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
             {j ? "Re-analyze JD" : "Analyze job description"}
           </Button>
+          {usage ? (
+            <p className="text-sm text-muted-foreground">
+              {usage.type === "signed-in"
+                ? `${usage.remaining} points left today`
+                : `${usage.remaining} free AI ${usage.remaining === 1 ? "try" : "tries"} left`}
+            </p>
+          ) : null}
           <button
             onClick={saveSetupAndContinue}
             className="ml-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -276,7 +310,18 @@ function JdStep() {
             <h2 className="text-lg font-semibold">Role breakdown</h2>
             {j.matchScore !== null && (
               <span className="font-mono text-sm">
-                Match: <span className={j.matchScore >= 70 ? "text-terminal" : j.matchScore >= 40 ? "text-amber" : "text-destructive"}>{j.matchScore}%</span>
+                Match:{" "}
+                <span
+                  className={
+                    j.matchScore >= 70
+                      ? "text-terminal"
+                      : j.matchScore >= 40
+                        ? "text-amber"
+                        : "text-destructive"
+                  }
+                >
+                  {j.matchScore}%
+                </span>
               </span>
             )}
           </div>
@@ -285,10 +330,26 @@ function JdStep() {
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Category label="Technical skills" items={j.technicalSkills} color="text-terminal" />
             <Category label="Soft skills" items={j.softSkills} color="text-terminal" />
-            <Category label="Tools & technologies" items={j.toolsAndTechnologies} color="text-terminal" />
-            <Category label="Industry knowledge" items={j.industryKnowledge} color="text-terminal" />
-            <Category label="Certifications & methodologies" items={j.certifications} color="text-amber" />
-            <Category label="Keywords & competencies" items={j.keywordsAndCompetencies} color="text-muted-foreground" />
+            <Category
+              label="Tools & technologies"
+              items={j.toolsAndTechnologies}
+              color="text-terminal"
+            />
+            <Category
+              label="Industry knowledge"
+              items={j.industryKnowledge}
+              color="text-terminal"
+            />
+            <Category
+              label="Certifications & methodologies"
+              items={j.certifications}
+              color="text-amber"
+            />
+            <Category
+              label="Keywords & competencies"
+              items={j.keywordsAndCompetencies}
+              color="text-muted-foreground"
+            />
           </div>
 
           {j.likelyQuestions.length > 0 && (
@@ -296,7 +357,12 @@ function JdStep() {
               <p className="eyebrow">Likely interview questions</p>
               <ol className="mt-2 space-y-2 text-sm">
                 {j.likelyQuestions.map((q, i) => (
-                  <li key={i} className="flex gap-2"><span className="font-mono text-muted-foreground">{String(i + 1).padStart(2, "0")}.</span> {q}</li>
+                  <li key={i} className="flex gap-2">
+                    <span className="font-mono text-muted-foreground">
+                      {String(i + 1).padStart(2, "0")}.
+                    </span>{" "}
+                    {q}
+                  </li>
                 ))}
               </ol>
             </div>
@@ -312,7 +378,9 @@ function JdStep() {
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
         Skip resume?{" "}
-        <Link to="/prep/plan" className="underline hover:text-foreground">Jump straight to plan →</Link>
+        <Link to="/prep/plan" className="underline hover:text-foreground">
+          Jump straight to plan →
+        </Link>
       </p>
     </div>
   );
@@ -324,7 +392,11 @@ function Category({ label, items, color }: { label: string; items: string[]; col
     <div>
       <p className="eyebrow">{label}</p>
       <ul className="mt-2 space-y-1 text-sm">
-        {items.map((s) => <li key={s} className="flex gap-2"><span className={color}>•</span> {s}</li>)}
+        {items.map((s) => (
+          <li key={s} className="flex gap-2">
+            <span className={color}>•</span> {s}
+          </li>
+        ))}
       </ul>
     </div>
   );

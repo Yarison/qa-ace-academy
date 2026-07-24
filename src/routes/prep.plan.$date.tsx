@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Clock, Loader2, Sparkles, Send, RotateCcw } from "lucide-react";
 import { evaluateAnswer, loadPrep, savePrep } from "@/lib/prep.functions";
+import type { AiUsageResult } from "@/lib/ai-usage.server";
 import {
   loadPrepLocal,
   savePrepLocal,
@@ -18,14 +19,20 @@ export const Route = createFileRoute("/prep/plan/$date")({
   head: ({ params }) => ({
     meta: [
       { title: `Practice — ${params.date} — AI Interview Coach` },
-      { name: "description", content: "Answer role-tailored interview questions, get AI scoring, feedback, and follow-ups." },
+      {
+        name: "description",
+        content:
+          "Answer role-tailored interview questions, get AI scoring, feedback, and follow-ups.",
+      },
     ],
   }),
   component: DayDetail,
   notFoundComponent: () => (
     <div className="rounded-xl border border-border p-6 text-sm text-muted-foreground">
       That day isn't in your plan.{" "}
-      <Link to="/prep/plan" className="text-terminal hover:underline">Back to plan</Link>
+      <Link to="/prep/plan" className="text-terminal hover:underline">
+        Back to plan
+      </Link>
     </div>
   ),
   errorComponent: ({ error }) => (
@@ -38,6 +45,7 @@ export const Route = createFileRoute("/prep/plan/$date")({
 function DayDetail() {
   const { date } = Route.useParams();
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -50,7 +58,9 @@ function DayDetail() {
         try {
           const remote = await loadPrep();
           if (remote) setState((s) => ({ ...s, ...remote }));
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     });
   }, []);
@@ -60,11 +70,21 @@ function DayDetail() {
   async function persist(next: PrepState) {
     setState(next);
     savePrepLocal(next);
-    if (signedIn) { try { await savePrep({ data: next }); } catch { /* ignore */ } }
+    if (signedIn) {
+      try {
+        await savePrep({ data: next });
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   if (!hydrated) {
-    return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      </div>
+    );
   }
 
   if (!day) {
@@ -73,7 +93,9 @@ function DayDetail() {
 
   const dayAnswers = state.answers?.[date] ?? [];
   const questions = day.questions ?? [];
-  const extraFollowUps = dayAnswers.flatMap((a) => a.followUpQuestions).filter((q) => !questions.includes(q));
+  const extraFollowUps = dayAnswers
+    .flatMap((a) => a.followUpQuestions)
+    .filter((q) => !questions.includes(q));
   const allQuestions = [...questions, ...extraFollowUps];
 
   async function submitAnswer(question: string, answer: string) {
@@ -93,6 +115,7 @@ function DayDetail() {
           resumeAnalysis: state.resumeAnalysis,
         },
       });
+      setUsage(result.usage ?? null);
       const entry: TaskAnswer = {
         question,
         answer: trimmed,
@@ -116,7 +139,10 @@ function DayDetail() {
 
   async function clearAnswer(question: string) {
     const existing = state.answers?.[date] ?? [];
-    const nextAnswers = { ...(state.answers ?? {}), [date]: existing.filter((a) => a.question !== question) };
+    const nextAnswers = {
+      ...(state.answers ?? {}),
+      [date]: existing.filter((a) => a.question !== question),
+    };
     await persist({ ...state, answers: nextAnswers });
   }
 
@@ -128,7 +154,10 @@ function DayDetail() {
 
   return (
     <div>
-      <Link to="/prep/plan" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/prep/plan"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-3.5 w-3.5" /> Back to plan
       </Link>
 
@@ -136,17 +165,23 @@ function DayDetail() {
         <p className="eyebrow">{formatDate(date)}</p>
         <h1 className="display-2 mt-2">{day.focusArea}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> ~{day.estimatedHours}h</span>
+          <span className="inline-flex items-center gap-1">
+            <Clock className="h-3 w-3" /> ~{day.estimatedHours}h
+          </span>
           {day.topics.length > 0 && <span>· {day.topics.join(" · ")}</span>}
         </div>
       </header>
 
       {day.activities.length > 0 && (
         <div className="surface mt-6 rounded-2xl border border-border p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today's activities</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Today's activities
+          </p>
           <ul className="mt-2 space-y-1 text-sm">
             {day.activities.map((a, i) => (
-              <li key={i} className="flex gap-2"><span className="text-terminal">→</span> {a}</li>
+              <li key={i} className="flex gap-2">
+                <span className="text-terminal">→</span> {a}
+              </li>
             ))}
           </ul>
         </div>
@@ -159,6 +194,13 @@ function DayDetail() {
             <p className="text-sm text-muted-foreground">
               Answer each one — AI will score, highlight weak areas, and generate follow-ups.
             </p>
+            {usage ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {usage.type === "signed-in"
+                  ? `${usage.remaining} points left today`
+                  : `${usage.remaining} free AI ${usage.remaining === 1 ? "try" : "tries"} left`}
+              </p>
+            ) : null}
           </div>
           <Button size="sm" variant={done ? "secondary" : "default"} onClick={toggleDone}>
             <Check className="h-3.5 w-3.5" /> {done ? "Marked complete" : "Mark day complete"}
@@ -167,7 +209,8 @@ function DayDetail() {
 
         {allQuestions.length === 0 && (
           <p className="mt-4 rounded-xl border border-border bg-accent/30 p-5 text-sm text-muted-foreground">
-            No questions were generated for this day. Rebuild the plan on the previous screen to include practice questions.
+            No questions were generated for this day. Rebuild the plan on the previous screen to
+            include practice questions.
           </p>
         )}
 
@@ -223,11 +266,13 @@ function QuestionCard({
     }
   }
 
-  const scoreColor =
-    !answered ? "" :
-    answered.score >= 8 ? "text-terminal border-terminal/40 bg-terminal/10" :
-    answered.score >= 5 ? "text-foreground border-border bg-accent" :
-    "text-destructive border-destructive/40 bg-destructive/10";
+  const scoreColor = !answered
+    ? ""
+    : answered.score >= 8
+      ? "text-terminal border-terminal/40 bg-terminal/10"
+      : answered.score >= 5
+        ? "text-foreground border-border bg-accent"
+        : "text-destructive border-destructive/40 bg-destructive/10";
 
   return (
     <li className="surface rounded-xl border border-border p-5">
@@ -242,7 +287,9 @@ function QuestionCard({
           <p className="font-medium">{question}</p>
         </div>
         {answered && (
-          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${scoreColor}`}>
+          <span
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${scoreColor}`}
+          >
             {answered.score}/10
           </span>
         )}
@@ -254,14 +301,21 @@ function QuestionCard({
             {answered.answer}
           </div>
           <div className="rounded-lg border border-border bg-accent/40 p-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Feedback</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Feedback
+            </p>
             <p className="mt-1">{answered.feedback}</p>
             {answered.weakAreas.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Weak areas</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Weak areas
+                </p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {answered.weakAreas.map((w) => (
-                    <span key={w} className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
+                    <span
+                      key={w}
+                      className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive"
+                    >
                       {w}
                     </span>
                   ))}
@@ -270,23 +324,36 @@ function QuestionCard({
             )}
             {answered.followUpQuestions.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Follow-ups added below</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Follow-ups added below
+                </p>
                 <ul className="mt-1 space-y-1 text-sm text-muted-foreground">
                   {answered.followUpQuestions.map((f, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-terminal">↳</span> {f}</li>
+                    <li key={i} className="flex gap-2">
+                      <span className="text-terminal">↳</span> {f}
+                    </li>
                   ))}
                 </ul>
               </div>
             )}
             {answered.exampleAnswer && (
               <div className="mt-3">
-               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Example answer</p>
-               <p className="mt-1 text-sm italic">{answered.exampleAnswer}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Example answer
+                </p>
+                <p className="mt-1 text-sm italic">{answered.exampleAnswer}</p>
               </div>
             )}
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="ghost" onClick={() => { setDraft(answered.answer); setEditing(true); }}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setDraft(answered.answer);
+                setEditing(true);
+              }}
+            >
               <Sparkles className="h-3.5 w-3.5" /> Try again
             </Button>
             <Button size="sm" variant="ghost" onClick={onClear}>
@@ -304,12 +371,27 @@ function QuestionCard({
           />
           <div className="flex justify-end gap-2">
             {editing && (
-              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setDraft(""); }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditing(false);
+                  setDraft("");
+                }}
+              >
                 cancel
               </Button>
             )}
-            <Button size="sm" onClick={handleSubmit} disabled={submitting || draft.trim().length < 5}>
-              {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={submitting || draft.trim().length < 5}
+            >
+              {submitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
               Score my answer
             </Button>
           </div>

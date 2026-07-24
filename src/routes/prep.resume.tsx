@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Upload, Loader2, ArrowRight, ArrowLeft, FileText, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { analyzeResume, savePrep, loadPrep } from "@/lib/prep.functions";
+import type { AiUsageResult } from "@/lib/ai-usage.server";
 import { loadPrepLocal, savePrepLocal, EMPTY_PREP, type PrepState } from "@/lib/prep-storage";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,11 @@ export const Route = createFileRoute("/prep/resume")({
   head: () => ({
     meta: [
       { title: "Step 2 — Your resume — AI Interview Coach" },
-      { name: "description", content: "Optionally upload or paste your resume for a personalized fit report and study plan." },
+      {
+        name: "description",
+        content:
+          "Optionally upload or paste your resume for a personalized fit report and study plan.",
+      },
     ],
   }),
   component: ResumeStep,
@@ -20,6 +25,7 @@ export const Route = createFileRoute("/prep/resume")({
 function ResumeStep() {
   const navigate = useNavigate();
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
@@ -40,7 +46,9 @@ function ResumeStep() {
             setText(remote.resumeText ?? "");
             savePrepLocal({ ...local, ...remote });
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     });
   }, []);
@@ -48,7 +56,11 @@ function ResumeStep() {
   async function persist(next: PrepState) {
     savePrepLocal(next);
     if (signedIn) {
-      try { await savePrep({ data: next }); } catch { /* ignore */ }
+      try {
+        await savePrep({ data: next });
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -63,7 +75,11 @@ function ResumeStep() {
       setFileName(f.name);
       setText("");
       toast.success(`${f.name} attached. Click Analyze to extract & analyze.`);
-    } else if (f.type.startsWith("text/") || f.name.toLowerCase().endsWith(".txt") || f.name.toLowerCase().endsWith(".md")) {
+    } else if (
+      f.type.startsWith("text/") ||
+      f.name.toLowerCase().endsWith(".txt") ||
+      f.name.toLowerCase().endsWith(".md")
+    ) {
       const t = await f.text();
       setText(t);
       setFileName(f.name);
@@ -83,6 +99,7 @@ function ResumeStep() {
       const res = await analyzeResume({
         data: text.trim() ? { text: text.trim() } : { pdfBase64: pdfBase64! },
       });
+      setUsage(res.usage ?? null);
       const next: PrepState = {
         ...state,
         resumeText: res.resumeText,
@@ -107,8 +124,8 @@ function ResumeStep() {
         <p className="eyebrow">Step 2 · optional</p>
         <h1 className="display-2 mt-2">Tell us about you.</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Optional but recommended. Upload a PDF or paste your resume to get a match score against the JD
-          and a truly personalized plan focused on your gaps.
+          Optional but recommended. Upload a PDF or paste your resume to get a match score against
+          the JD and a truly personalized plan focused on your gaps.
         </p>
       </header>
 
@@ -132,15 +149,26 @@ function ResumeStep() {
           </div>
           {fileName && pdfBase64 ? (
             <div className="flex items-center justify-between rounded-lg border border-border bg-background/60 p-3 text-sm">
-              <span className="inline-flex items-center gap-2"><FileText className="h-4 w-4 text-terminal" /> {fileName}</span>
-              <button onClick={() => { setPdfBase64(null); setFileName(null); }} className="text-muted-foreground hover:text-foreground">
+              <span className="inline-flex items-center gap-2">
+                <FileText className="h-4 w-4 text-terminal" /> {fileName}
+              </span>
+              <button
+                onClick={() => {
+                  setPdfBase64(null);
+                  setFileName(null);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <textarea
               value={text}
-              onChange={(e) => { setText(e.target.value); setFileName(null); }}
+              onChange={(e) => {
+                setText(e.target.value);
+                setFileName(null);
+              }}
               placeholder="Paste your resume text here…"
               className="min-h-[220px] w-full resize-y rounded-lg border border-border bg-background p-3 text-sm outline-none focus:border-terminal/60"
             />
@@ -149,10 +177,24 @@ function ResumeStep() {
 
         <div className="mt-4 flex items-center gap-3">
           <Button onClick={analyze} disabled={analyzing}>
-            {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {analyzing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
             {a ? "Re-analyze" : "Analyze resume"}
           </Button>
-          <Link to="/prep/jd" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          {usage ? (
+            <p className="text-sm text-muted-foreground">
+              {usage.type === "signed-in"
+                ? `${usage.remaining} points left today`
+                : `${usage.remaining} free AI ${usage.remaining === 1 ? "try" : "tries"} left`}
+            </p>
+          ) : null}
+          <Link
+            to="/prep/jd"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-3.5 w-3.5" /> back to JD
           </Link>
           <button
@@ -168,7 +210,9 @@ function ResumeStep() {
         <div className="surface mt-6 rounded-2xl border border-border p-6">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">Your profile</h2>
-            <span className="text-sm text-muted-foreground">~{a.yearsExperience} years experience</span>
+            <span className="text-sm text-muted-foreground">
+              ~{a.yearsExperience} years experience
+            </span>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{a.summary}</p>
 
@@ -177,7 +221,12 @@ function ResumeStep() {
               <p className="eyebrow">Skills</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {a.skills.map((s) => (
-                  <span key={s} className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs">{s}</span>
+                  <span
+                    key={s}
+                    className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs"
+                  >
+                    {s}
+                  </span>
                 ))}
               </div>
             </div>
@@ -185,7 +234,9 @@ function ResumeStep() {
               <p className="eyebrow">Areas to strengthen</p>
               <ul className="mt-2 space-y-1 text-sm">
                 {a.weakAreas.map((w) => (
-                  <li key={w} className="flex gap-2"><span className="text-destructive">•</span> {w}</li>
+                  <li key={w} className="flex gap-2">
+                    <span className="text-destructive">•</span> {w}
+                  </li>
                 ))}
               </ul>
             </div>
