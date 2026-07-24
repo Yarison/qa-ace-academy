@@ -23,7 +23,7 @@ export function Nav() {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-12 max-w-6xl items-center gap-8 px-6 text-[13px]">
         <Link to="/" search={{}} className="font-semibold tracking-tight text-foreground">
-          ai<span className="text-terminal">.</span>coach
+          PrepPilotX
         </Link>
         <div className="hidden items-center gap-1 md:flex">
           {links.map((l) => (
