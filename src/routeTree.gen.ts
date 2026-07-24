@@ -12,13 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MockRouteImport } from './routes/mock'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as PrepRouteImport } from './routes/prep'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
@@ -27,7 +24,6 @@ import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PrepJdRouteImport } from './routes/prep.jd'
 import { Route as PrepResumeRouteImport } from './routes/prep.resume'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as PrepPlanIndexRouteImport } from './routes/prep.plan.index'
 import { Route as PrepPlanDateRouteImport } from './routes/prep.plan.$date'
 
@@ -43,11 +39,6 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MockRoute = MockRouteImport.update({
@@ -70,18 +61,6 @@ const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
   path: '/sql-playground',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -122,12 +101,6 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const PrepPlanIndexRoute = PrepPlanIndexRouteImport.update({
   id: '/plan/',
   path: '/plan/',
@@ -142,13 +115,10 @@ const PrepPlanDateRoute = PrepPlanDateRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/mcp': typeof McpRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
@@ -157,18 +127,14 @@ export interface FileRoutesByFullPath {
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan/': typeof PrepPlanIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/mcp': typeof McpRoute
   '/mock': typeof MockRoute
   '/sql-playground': typeof SqlPlaygroundRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
@@ -177,7 +143,6 @@ export interface FileRoutesByTo {
   '/practice': typeof PracticeIndexRoute
   '/prep': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan': typeof PrepPlanIndexRoute
 }
@@ -186,13 +151,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/mcp': typeof McpRoute
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
   '/sql-playground': typeof SqlPlaygroundRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
   '/practice/$category': typeof PracticeCategoryRoute
@@ -201,7 +163,6 @@ export interface FileRoutesById {
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan/': typeof PrepPlanIndexRoute
 }
@@ -210,13 +171,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/mcp'
     | '/mock'
     | '/practice'
     | '/prep'
     | '/sql-playground'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/history'
     | '/api/chat'
     | '/practice/$category'
@@ -225,18 +183,14 @@ export interface FileRouteTypes {
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/prep/plan/$date'
     | '/prep/plan/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
-    | '/mcp'
     | '/mock'
     | '/sql-playground'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/history'
     | '/api/chat'
     | '/practice/$category'
@@ -245,7 +199,6 @@ export interface FileRouteTypes {
     | '/practice'
     | '/prep'
     | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/prep/plan/$date'
     | '/prep/plan'
   id:
@@ -253,13 +206,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/mcp'
     | '/mock'
     | '/practice'
     | '/prep'
     | '/sql-playground'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/history'
     | '/api/chat'
     | '/practice/$category'
@@ -268,7 +218,6 @@ export interface FileRouteTypes {
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/prep/plan/$date'
     | '/prep/plan/'
   fileRoutesById: FileRoutesById
@@ -277,16 +226,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  McpRoute: typeof McpRoute
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
   PrepRoute: typeof PrepRouteWithChildren
   SqlPlaygroundRoute: typeof SqlPlaygroundRoute
-  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
-  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
-  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -310,13 +255,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mock': {
@@ -345,20 +283,6 @@ declare module '@tanstack/react-router' {
       path: '/sql-playground'
       fullPath: '/sql-playground'
       preLoaderRoute: typeof SqlPlaygroundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/history': {
@@ -415,13 +339,6 @@ declare module '@tanstack/react-router' {
       path: '/.lovable/oauth/consent'
       fullPath: '/.lovable/oauth/consent'
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prep/plan/': {
@@ -488,17 +405,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  McpRoute: McpRoute,
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
   PrepRoute: PrepRouteWithChildren,
   SqlPlaygroundRoute: SqlPlaygroundRoute,
-  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
-  Char91DotwellKnownChar93OauthProtectedResourceRoute:
-    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiChatRoute: ApiChatRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
-  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
