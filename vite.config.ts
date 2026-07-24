@@ -5,7 +5,6 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
 const cloudUrl =
   process.env.VITE_SUPABASE_URL ??
@@ -23,8 +22,6 @@ const cloudProjectId =
   
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
   },
   vite: {
@@ -33,6 +30,5 @@ export default defineConfig({
       "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(cloudPublishableKey),
       "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(cloudProjectId),
     },
-    plugins: [mcpPlugin()],
   },
 });
