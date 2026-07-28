@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 
 const links = [
-  { to: "/prep/jd", label: "Prep" },
+  { to: "/prep", label: "My Calendar" },
+  { to: "/prep/today", label: "Today's Prep" },
   { to: "/practice", label: "Practice" },
   { to: "/mock", label: "Mock Interview" },
 ] as const;

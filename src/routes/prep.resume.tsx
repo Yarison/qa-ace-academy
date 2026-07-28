@@ -4,7 +4,14 @@ import { Upload, Loader2, ArrowRight, ArrowLeft, FileText, Sparkles, X } from "l
 import { toast } from "sonner";
 import { analyzeResume, savePrep, loadPrep } from "@/lib/prep.functions";
 import type { AiUsageResult } from "@/lib/ai-usage.server";
-import { loadPrepLocal, savePrepLocal, EMPTY_PREP, type PrepState } from "@/lib/prep-storage";
+import {
+  getActiveRoadmapLocal,
+  loadPrepLocal,
+  savePrepLocal,
+  EMPTY_PREP,
+  type PrepRoadmap,
+  type PrepState,
+} from "@/lib/prep-storage";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +32,7 @@ export const Route = createFileRoute("/prep/resume")({
 function ResumeStep() {
   const navigate = useNavigate();
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [activeRoadmap, setActiveRoadmap] = useState<PrepRoadmap | null>(null);
   const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -33,18 +41,21 @@ function ResumeStep() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
-    const local = loadPrepLocal();
+    const active = getActiveRoadmapLocal();
+    setActiveRoadmap(active);
+    const local = active.state ?? loadPrepLocal();
     setState(local);
     setText(local.resumeText ?? "");
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
         setSignedIn(true);
         try {
-          const remote = await loadPrep();
+          const remote = await loadPrep({ data: { roadmapId: active.id } });
           if (remote) {
-            setState((s) => ({ ...s, ...remote }));
+            const merged = { ...local, ...remote };
+            setState(merged);
             setText(remote.resumeText ?? "");
-            savePrepLocal({ ...local, ...remote });
+            savePrepLocal(merged);
           }
         } catch {
           /* ignore */
@@ -55,9 +66,17 @@ function ResumeStep() {
 
   async function persist(next: PrepState) {
     savePrepLocal(next);
+    setActiveRoadmap((prev) => (prev ? { ...prev, state: next } : prev));
     if (signedIn) {
       try {
-        await savePrep({ data: next });
+        await savePrep({
+          data: {
+            ...next,
+            roadmapId: activeRoadmap?.id,
+            roadmapName: activeRoadmap?.name,
+            roadmapColor: activeRoadmap?.color,
+          },
+        });
       } catch {
         /* ignore */
       }

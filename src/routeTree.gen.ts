@@ -23,6 +23,7 @@ import { Route as PracticeCategoryRouteImport } from './routes/practice.$categor
 import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PrepJdRouteImport } from './routes/prep.jd'
 import { Route as PrepResumeRouteImport } from './routes/prep.resume'
+import { Route as PrepTodayRouteImport } from './routes/prep.today'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as PrepPlanIndexRouteImport } from './routes/prep.plan.index'
 import { Route as PrepPlanDateRouteImport } from './routes/prep.plan.$date'
@@ -96,6 +97,11 @@ const PrepResumeRoute = PrepResumeRouteImport.update({
   path: '/resume',
   getParentRoute: () => PrepRoute,
 } as any)
+const PrepTodayRoute = PrepTodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => PrepRoute,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
   '/prep/resume': typeof PrepResumeRoute
+  '/prep/today': typeof PrepTodayRoute
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
   '/prep/resume': typeof PrepResumeRoute
+  '/prep/today': typeof PrepTodayRoute
   '/practice': typeof PracticeIndexRoute
   '/prep': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
   '/prep/resume': typeof PrepResumeRoute
+  '/prep/today': typeof PrepTodayRoute
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/practice/$category'
     | '/prep/jd'
     | '/prep/resume'
+    | '/prep/today'
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/practice/$category'
     | '/prep/jd'
     | '/prep/resume'
+    | '/prep/today'
     | '/practice'
     | '/prep'
     | '/.lovable/oauth/consent'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/practice/$category'
     | '/prep/jd'
     | '/prep/resume'
+    | '/prep/today'
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
@@ -334,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrepResumeRouteImport
       parentRoute: typeof PrepRoute
     }
+    '/prep/today': {
+      id: '/prep/today'
+      path: '/today'
+      fullPath: '/prep/today'
+      preLoaderRoute: typeof PrepTodayRouteImport
+      parentRoute: typeof PrepRoute
+    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -386,6 +405,7 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
 interface PrepRouteChildren {
   PrepJdRoute: typeof PrepJdRoute
   PrepResumeRoute: typeof PrepResumeRoute
+  PrepTodayRoute: typeof PrepTodayRoute
   PrepIndexRoute: typeof PrepIndexRoute
   PrepPlanDateRoute: typeof PrepPlanDateRoute
   PrepPlanIndexRoute: typeof PrepPlanIndexRoute
@@ -394,6 +414,7 @@ interface PrepRouteChildren {
 const PrepRouteChildren: PrepRouteChildren = {
   PrepJdRoute: PrepJdRoute,
   PrepResumeRoute: PrepResumeRoute,
+  PrepTodayRoute: PrepTodayRoute,
   PrepIndexRoute: PrepIndexRoute,
   PrepPlanDateRoute: PrepPlanDateRoute,
   PrepPlanIndexRoute: PrepPlanIndexRoute,

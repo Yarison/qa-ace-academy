@@ -144,6 +144,9 @@ const PlanInput = z.object({
   jdAnalysis: JdSchema.nullable(),
   resumeAnalysis: ResumeSchema.nullable(),
   experienceLevel: z.enum(["beginner", "intermediate", "experienced"]),
+  interviewType: z
+    .enum(["general", "behavioral", "technical", "case", "panel", "take-home"])
+    .optional(),
   hoursPerDay: z.number().min(1).max(12),
   days: z.number().int().min(1).max(60),
   startDate: z.string(), // ISO
@@ -169,6 +172,7 @@ export const generatePlan = createServerFn({ method: "POST" })
 Rules:
 - Return exactly ${data.days} entries in "plan", one per day, starting on ${data.startDate}. Increment date by one day each entry (YYYY-MM-DD).
 - Each day's estimatedHours must be <= ${data.hoursPerDay} (respect the candidate's time budget).
+- Adapt to interviewType="${data.interviewType ?? "general"}". Example: behavioral -> stories/leadership; technical -> hard-skill drills; case -> frameworks/quantitative structuring; panel -> cross-functional communication.
 - Tailor the plan to the candidate's experienceLevel="${data.experienceLevel}": beginners spend more time on foundations, experienced candidates focus on advanced/behavioral/company-specific prep.
 - Prioritize gaps: missing skills from the resume vs JD, weak areas, and topics the employer emphasizes.
 - focusArea should be a short category (e.g. "Technical foundations", "Tools mastery", "Behavioral stories", "Industry knowledge", "Mock interview", "Rest & review").
@@ -177,12 +181,14 @@ Rules:
 - If days >= 3, dedicate the second-to-last day to a full mock interview.
 - The last day is always light: rest, review notes, prepare questions for the interviewer.
 - Front-load high-priority gaps; back-load review and behavioral prep.
+- If days <= 2, do NOT create a full curriculum. Build a triage plan: only highest-value activities with immediate interview impact, concrete rehearsal, and targeted likely questions from this JD.
 - questions: 3-5 realistic interview questions the candidate should be able to answer at the end of that day. Match the day's focusArea and topics. Behavioral days -> behavioral questions; technical/tools days -> technical/scenario questions. Be specific to THIS role. Skip questions on pure "Rest & review" days.
 - Be specific to THIS role — no generic filler.`,
       prompt: `startDate: ${data.startDate}
 days: ${data.days}
 hoursPerDay: ${data.hoursPerDay}
 experienceLevel: ${data.experienceLevel}
+interviewType: ${data.interviewType ?? "general"}
 
 Job description:
 """${data.jobDescription.slice(0, 6000)}"""
@@ -265,6 +271,9 @@ const RefineInput = z.object({
   jdAnalysis: JdSchema.nullable(),
   resumeAnalysis: ResumeSchema.nullable(),
   experienceLevel: z.enum(["beginner", "intermediate", "experienced"]),
+  interviewType: z
+    .enum(["general", "behavioral", "technical", "case", "panel", "take-home"])
+    .optional(),
   hoursPerDay: z.number().min(1).max(12),
   startDate: z.string(),
   remainingDays: z.number().int().min(1).max(60),
@@ -304,14 +313,17 @@ export const refinePlan = createServerFn({ method: "POST" })
 Rules:
 - Return exactly ${data.remainingDays} entries in "plan", one per day, starting on ${data.startDate} (YYYY-MM-DD, incrementing daily).
 - Each estimatedHours <= ${data.hoursPerDay}.
+- Adapt to interviewType="${data.interviewType ?? "general"}" and prioritize what that interview format rewards.
 - Aggressively prioritize the aggregated weakAreas below — the weaker the past answers, the more days you spend re-drilling those gaps with fresh angles and harder follow-ups.
 - Keep topics/activities specific to THIS role. Include a mock interview day near the end if remainingDays >= 3, and a light review on the final day.
+- If remainingDays <= 2, build a triage plan with only the highest-leverage activities and role-specific likely questions; avoid broad coverage.
 - questions: 3-5 targeted interview questions per day that directly probe the identified weak areas (or the day's focus).
 - Do NOT repeat identical questions the candidate already answered.`,
       prompt: `startDate: ${data.startDate}
 remainingDays: ${data.remainingDays}
 hoursPerDay: ${data.hoursPerDay}
 experienceLevel: ${data.experienceLevel}
+interviewType: ${data.interviewType ?? "general"}
 avgScore: ${avgScore}
 
 Aggregated weak areas from past answers (prioritize these):
@@ -363,52 +375,73 @@ const PrepStateSchema = z
   })
   .passthrough();
 
+const SavePrepInput = PrepStateSchema.extend({
+  roadmapId: z.string().min(1).max(120).optional(),
+  roadmapName: z.string().min(1).max(120).optional(),
+  roadmapColor: z.string().min(1).max(40).optional(),
+});
+
 export const savePrep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => PrepStateSchema.parse(data))
+  .inputValidator((data: unknown) => SavePrepInput.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase.from("prep_sessions").upsert(
+    const roadmapId = data.roadmapId ?? "roadmap-1";
+    const interviewDate = data.interviewDate ?? ((data as { preferences?: { interviewDate?: string | null } }).preferences?.interviewDate ?? null);
+    const prepSessions = supabase.from("prep_sessions") as any;
+    const { error } = await prepSessions.upsert(
       {
         user_id: userId,
+        roadmap_id: roadmapId,
+        roadmap_name: data.roadmapName ?? null,
+        roadmap_color: data.roadmapColor ?? null,
         resume_text: data.resumeText,
         resume_analysis: data.resumeAnalysis,
         job_description: data.jobDescription,
         jd_analysis: data.jdAnalysis,
-        interview_date: data.interviewDate ?? null,
+        interview_date: interviewDate,
         plan: data.plan,
         completed: data.completed,
         answers: data.answers ?? {},
       },
-      { onConflict: "user_id" },
+      { onConflict: "user_id,roadmap_id" },
     );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
+const LoadPrepInput = z
+  .object({
+    roadmapId: z.string().min(1).max(120).optional(),
+  })
+  .optional();
+
 export const loadPrep = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: unknown) => LoadPrepInput.parse(data))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("prep_sessions")
+    const roadmapId = data?.roadmapId ?? "roadmap-1";
+    const prepSessions = supabase.from("prep_sessions") as any;
+    const { data: row, error } = await prepSessions
       .select(
         "resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed, answers",
       )
       .eq("user_id", userId)
+      .eq("roadmap_id", roadmapId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) return null;
+    if (!row) return null;
     return {
-      resumeText: data.resume_text ?? "",
-      resumeAnalysis: (data.resume_analysis as z.infer<typeof ResumeSchema> | null) ?? null,
-      jobDescription: data.job_description ?? "",
-      jdAnalysis: (data.jd_analysis as z.infer<typeof JdSchema> | null) ?? null,
-      interviewDate: data.interview_date ?? null,
-      plan: (data.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
-      completed: (data.completed as string[] | null) ?? [],
+      resumeText: row.resume_text ?? "",
+      resumeAnalysis: (row.resume_analysis as z.infer<typeof ResumeSchema> | null) ?? null,
+      jobDescription: row.job_description ?? "",
+      jdAnalysis: (row.jd_analysis as z.infer<typeof JdSchema> | null) ?? null,
+      interviewDate: row.interview_date ?? null,
+      plan: (row.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
+      completed: (row.completed as string[] | null) ?? [],
       answers:
-        ((data as { answers?: unknown }).answers as Record<
+        ((row as { answers?: unknown }).answers as Record<
           string,
           z.infer<typeof TaskAnswerSchema>[]
         > | null) ?? {},
