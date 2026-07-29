@@ -14,7 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { loadPrep } from "@/lib/prep.functions";
 import {
-  createRoadmapLocal,
+  clearPrepDraftLocal,
   daysBetween,
   getActiveRoadmapLocal,
   listPrepRoadmapsLocal,
@@ -569,10 +569,8 @@ function MyPrepDashboard() {
   }
 
   function createNewPrepRoadmap() {
-    const created = createRoadmapLocal();
-    switchActiveRoadmapLocal(created.id);
-    setRoadmaps(listPrepRoadmapsLocal());
-    navigate({ to: "/prep/jd" });
+    clearPrepDraftLocal();
+    navigate({ to: "/prep/jd", search: { new: "1" } });
   }
 
   function goToToday() {

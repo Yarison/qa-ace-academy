@@ -349,6 +349,253 @@ ${JSON.stringify(data.resumeAnalysis)}`,
     return { plan: result.experimental_output.plan, usage };
   });
 
+// ---------- Interview cheatsheet ----------
+
+const CheatsheetInput = z.object({
+  resumeText: z.string().max(20000).optional(),
+  resumeAnalysis: ResumeSchema.nullable().optional(),
+  jobDescription: z.string().min(10).max(10000),
+  jdAnalysis: JdSchema.nullable().optional(),
+  plan: z.array(PlanDaySchema).max(60),
+  answers: z
+    .record(
+      z.string(),
+      z.array(
+        z.object({
+          question: z.string(),
+          answer: z.string(),
+          score: z.number(),
+          feedback: z.string(),
+          weakAreas: z.array(z.string()),
+          followUpQuestions: z.array(z.string()),
+          exampleAnswer: z.string().nullable().optional(),
+          answeredAt: z.string(),
+        }),
+      ),
+    )
+    .optional(),
+  targetRole: z.string().max(200).optional(),
+});
+
+const CheatsheetAnswerItemSchema = z.object({
+  question: z.string().max(320),
+  label: z.enum(["Your Answer", "Improve This", "Suggested Answer"]),
+  score: z.number().min(0).max(10).nullable(),
+  talkingPoints: z.array(z.string()).min(2).max(5),
+  note: z.string().max(240).nullable().optional(),
+});
+
+const CheatsheetStorySchema = z.object({
+  title: z.string().max(160),
+  points: z.array(z.string()).min(2).max(4),
+});
+
+const CheatsheetTopicSchema = z.object({
+  topic: z.string().max(140),
+  reason: z.string().max(220),
+});
+
+const CheatsheetSchema = z.object({
+  mostLikelyQuestions: z.array(z.string().max(320)).min(5).max(12),
+  bestAnswers: z.array(CheatsheetAnswerItemSchema).min(5).max(12),
+  keyStories: z.array(CheatsheetStorySchema).max(6),
+  topicsToReview: z.array(CheatsheetTopicSchema).max(8),
+  questionsToAsk: z.array(z.string().max(220)).min(4).max(10),
+});
+
+export type InterviewCheatsheet = z.infer<typeof CheatsheetSchema>;
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(value: string): Set<string> {
+  const stop = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "from",
+    "into",
+    "your",
+    "have",
+    "about",
+    "what",
+    "when",
+    "where",
+    "would",
+    "could",
+    "should",
+    "did",
+    "are",
+    "how",
+    "you",
+    "why",
+    "tell",
+    "describe",
+    "through",
+    "explain",
+  ]);
+  return new Set(
+    normalizeText(value)
+      .split(" ")
+      .filter((t) => t.length > 2 && !stop.has(t)),
+  );
+}
+
+function overlapScore(a: string, b: string): number {
+  const aTokens = tokenize(a);
+  const bTokens = tokenize(b);
+  if (aTokens.size === 0 || bTokens.size === 0) return 0;
+  let overlap = 0;
+  for (const token of aTokens) {
+    if (bTokens.has(token)) overlap += 1;
+  }
+  return overlap / Math.max(aTokens.size, bTokens.size);
+}
+
+type FlatAnswer = {
+  question: string;
+  answer: string;
+  score: number;
+  feedback: string;
+  weakAreas: string[];
+  followUpQuestions: string[];
+  exampleAnswer?: string | null;
+  answeredAt: string;
+  date: string;
+};
+
+function findBestAnswerMatch(question: string, answers: FlatAnswer[]): FlatAnswer | null {
+  const qNorm = normalizeText(question);
+  let best: FlatAnswer | null = null;
+  let bestScore = 0;
+
+  for (const answer of answers) {
+    const aQuestionNorm = normalizeText(answer.question);
+    const base = overlapScore(qNorm, aQuestionNorm);
+    const directBoost =
+      qNorm.includes(aQuestionNorm) || aQuestionNorm.includes(qNorm)
+        ? 0.35
+        : 0;
+    const scoreBoost = answer.score >= 6 ? 0.08 : 0;
+    const total = base + directBoost + scoreBoost;
+    if (total > bestScore) {
+      bestScore = total;
+      best = answer;
+    }
+  }
+
+  return bestScore >= 0.22 ? best : null;
+}
+
+export const generateInterviewCheatsheet = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
+  .inputValidator((data: unknown) => CheatsheetInput.parse(data))
+  .handler(async ({ data }) => {
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(4);
+    const gateway = createGeminiProvider(key);
+
+    const planQuestions = data.plan.flatMap((d) => d.questions ?? []);
+    const jdLikelyQuestions = data.jdAnalysis?.likelyQuestions ?? [];
+
+    const likelyQuestions = Array.from(
+      new Set([...jdLikelyQuestions, ...planQuestions].map((q) => q.trim()).filter(Boolean)),
+    ).slice(0, 12);
+
+    if (likelyQuestions.length === 0) {
+      throw new Error("No roadmap questions found yet. Generate a plan with practice questions first.");
+    }
+
+    const flatAnswers: FlatAnswer[] = Object.entries(data.answers ?? {}).flatMap(([date, entries]) =>
+      entries.map((entry) => ({ ...entry, date })),
+    );
+
+    const matched = likelyQuestions.map((question) => {
+      const best = findBestAnswerMatch(question, flatAnswers);
+      if (!best) {
+        return {
+          question,
+          label: "Suggested Answer" as const,
+          score: null,
+          answer: null,
+          feedback: null,
+          weakAreas: [] as string[],
+        };
+      }
+      if (best.score >= 6) {
+        return {
+          question,
+          label: "Your Answer" as const,
+          score: best.score,
+          answer: best.answer,
+          feedback: best.feedback,
+          weakAreas: best.weakAreas,
+        };
+      }
+      return {
+        question,
+        label: "Improve This" as const,
+        score: best.score,
+        answer: best.answer,
+        feedback: best.feedback,
+        weakAreas: best.weakAreas,
+      };
+    });
+
+    const result = await generateText({
+      model: gateway("gemini-3.1-flash-lite"),
+      system: `You are an interview coach preparing a final pre-interview cheatsheet.
+
+Output requirements:
+- Keep every item concise and practical for immediate use.
+- Prefer short talking points, not long paragraphs.
+- Never invent candidate experience that is not supported by resume/jd context.
+- Respect each label exactly:
+  - "Your Answer": Use the candidate's own answer as the primary source. Tighten phrasing only.
+  - "Improve This": Base suggestions directly on the candidate's existing answer and weaknesses.
+  - "Suggested Answer": Build an answer only from supported resume/JD context; if evidence is thin, be transparent.
+- Most likely questions must align with role and roadmap.
+- Questions to ask interviewer should be thoughtful and specific to the role/company context in the JD.
+`,
+      prompt: `Target role: ${data.targetRole ?? "Unknown role"}
+
+Resume text (may be partial):
+"""${(data.resumeText ?? "").slice(0, 8000)}"""
+
+Resume analysis:
+${JSON.stringify(data.resumeAnalysis ?? null)}
+
+Job description:
+"""${data.jobDescription.slice(0, 7000)}"""
+
+JD analysis:
+${JSON.stringify(data.jdAnalysis ?? null)}
+
+Roadmap-derived likely interview questions:
+${JSON.stringify(likelyQuestions)}
+
+Question matching with answer priority labels:
+${JSON.stringify(matched)}
+
+Generate the full cheatsheet now.`,
+      experimental_output: Output.object({ schema: CheatsheetSchema }),
+    });
+
+    return {
+      cheatsheet: result.experimental_output,
+      usage,
+    };
+  });
+
 // ---------- Persistence (signed-in users only) ----------
 
 const TaskAnswerSchema = z.object({

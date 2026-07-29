@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { analyzeJd, savePrep, loadPrep } from "@/lib/prep.functions";
 import {
   getActiveRoadmapLocal,
+  loadPrepDraftLocal,
   loadPrepLocal,
+  savePrepDraftLocal,
   savePrepLocal,
   EMPTY_PREP,
   todayISO,
@@ -30,6 +32,9 @@ export const Route = createFileRoute("/prep/jd")({
       },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: typeof s.new === "string" ? s.new : "",
+  }),
   component: JdStep,
 });
 
@@ -43,6 +48,8 @@ type DateMode = "date" | "days";
 
 function JdStep() {
   const navigate = useNavigate();
+  const { new: createMode } = Route.useSearch();
+  const isNewRoadmap = createMode === "1";
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
   const [activeRoadmap, setActiveRoadmap] = useState<PrepRoadmap | null>(null);
   const [usage, setUsage] = useState<AiUsageResult | null>(null);
@@ -57,6 +64,28 @@ function JdStep() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    if (isNewRoadmap) {
+      const draft = loadPrepDraftLocal() ?? EMPTY_PREP;
+      setActiveRoadmap(null);
+      setState(draft);
+      setJd(draft.jobDescription ?? "");
+      setInterviewDate(draft.preferences.interviewDate ?? "");
+      if (draft.preferences.daysUntil) {
+        setDaysUntil(draft.preferences.daysUntil);
+        setDateMode("days");
+      } else {
+        setDateMode("date");
+      }
+      setHoursPerDay(draft.preferences.hoursPerDay);
+      setLevel(draft.preferences.experienceLevel);
+      setInterviewType(draft.preferences.interviewType ?? "general");
+
+      supabase.auth.getSession().then(({ data }) => {
+        setSignedIn(!!data.session);
+      });
+      return;
+    }
+
     const active = getActiveRoadmapLocal();
     setActiveRoadmap(active);
     const local = active.state ?? loadPrepLocal();
@@ -98,7 +127,7 @@ function JdStep() {
         }
       }
     });
-  }, []);
+  }, [isNewRoadmap]);
 
   const setupValid = useMemo(() => {
     if (hoursPerDay < 1 || hoursPerDay > 12) return false;
@@ -110,6 +139,12 @@ function JdStep() {
   }, [dateMode, interviewDate, daysUntil, hoursPerDay]);
 
   async function persist(next: PrepState) {
+    if (isNewRoadmap) {
+      savePrepDraftLocal(next);
+      setState(next);
+      return;
+    }
+
     savePrepLocal(next);
     setState(next);
     setActiveRoadmap((prev) => (prev ? { ...prev, state: next } : prev));
@@ -186,7 +221,7 @@ function JdStep() {
       },
     };
     await persist(next);
-    navigate({ to: "/prep/resume" });
+    navigate({ to: "/prep/resume", search: isNewRoadmap ? { new: "1" } : undefined });
   }
 
   const j = state.jdAnalysis;

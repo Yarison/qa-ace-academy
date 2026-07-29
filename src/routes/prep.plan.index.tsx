@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Briefcase,
@@ -18,14 +18,18 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { generatePlan, refinePlan, savePrep, loadPrep } from "@/lib/prep.functions";
+import { generateInterviewCheatsheet, generatePlan, refinePlan, savePrep, loadPrep } from "@/lib/prep.functions";
+import type { InterviewCheatsheet } from "@/lib/prep.functions";
 import type { AiUsageResult } from "@/lib/ai-usage.server";
 import {
+  clearPrepDraftLocal,
   createRoadmapLocal,
   deleteRoadmapLocal,
   getActiveRoadmapLocal,
   listPrepRoadmapsLocal,
+  loadPrepDraftLocal,
   loadPrepLocal,
+  savePrepDraftLocal,
   savePrepLocal,
   switchActiveRoadmapLocal,
   renameRoadmapLocal,
@@ -53,17 +57,27 @@ export const Route = createFileRoute("/prep/plan/")({
       },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: typeof s.new === "string" ? s.new : "",
+  }),
   component: PlanStep,
 });
 
 function PlanStep() {
+  const navigate = useNavigate();
+  const { new: createMode } = Route.useSearch();
+  const isNewRoadmap = createMode === "1";
   const [roadmaps, setRoadmaps] = useState<PrepRoadmap[]>([]);
   const [activeRoadmapId, setActiveRoadmapId] = useState<string>("roadmap-1");
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
   const [signedIn, setSignedIn] = useState(false);
   const [building, setBuilding] = useState(false);
   const [refining, setRefining] = useState(false);
+  const [generatingCheatsheet, setGeneratingCheatsheet] = useState(false);
+  const [cheatsheet, setCheatsheet] = useState<InterviewCheatsheet | null>(null);
   const [usage, setUsage] = useState<AiUsageResult | null>(null);
+  const buildInFlightRef = useRef(false);
+  const cheatsheetInFlightRef = useRef(false);
 
   const activeRoadmap = useMemo(
     () => roadmaps.find((r) => r.id === activeRoadmapId) ?? null,
@@ -71,6 +85,19 @@ function PlanStep() {
   );
 
   useEffect(() => {
+    if (isNewRoadmap) {
+      const active = getActiveRoadmapLocal();
+      const draft = loadPrepDraftLocal() ?? EMPTY_PREP;
+      setRoadmaps(listPrepRoadmapsLocal());
+      setActiveRoadmapId(active.id);
+      setState(draft);
+
+      supabase.auth.getSession().then(({ data }) => {
+        setSignedIn(!!data.session);
+      });
+      return;
+    }
+
     const active = getActiveRoadmapLocal();
     setRoadmaps(listPrepRoadmapsLocal());
     setActiveRoadmapId(active.id);
@@ -99,9 +126,15 @@ function PlanStep() {
         }
       }
     });
-  }, []);
+  }, [isNewRoadmap]);
 
   async function persist(next: PrepState) {
+    if (isNewRoadmap) {
+      setState(next);
+      savePrepDraftLocal(next);
+      return;
+    }
+
     setState(next);
     savePrepLocal(next);
     setRoadmaps(listPrepRoadmapsLocal());
@@ -127,6 +160,7 @@ function PlanStep() {
     setRoadmaps(listPrepRoadmapsLocal());
     setActiveRoadmapId(switched.id);
     setState(switched.state);
+    setCheatsheet(null);
 
     if (signedIn) {
       try {
@@ -165,6 +199,7 @@ function PlanStep() {
     setRoadmaps(listPrepRoadmapsLocal());
     setActiveRoadmapId(created.id);
     setState(created.state);
+    setCheatsheet(null);
   }
 
   function renameRoadmap() {
@@ -184,12 +219,14 @@ function PlanStep() {
     setRoadmaps(listPrepRoadmapsLocal());
     setActiveRoadmapId(nextActive.id);
     setState(nextActive.state);
+    setCheatsheet(null);
   }
 
   const days = useMemo(() => resolveDaysUntil(state.preferences), [state.preferences]);
   const canBuild = !!state.jobDescription && !!days;
 
   async function build() {
+    if (buildInFlightRef.current || building) return;
     if (!state.jobDescription || state.jobDescription.trim().length < 30) {
       toast.error("Add a job description in step 1 first");
       return;
@@ -198,6 +235,7 @@ function PlanStep() {
       toast.error("Set your interview date or days-until in step 1");
       return;
     }
+    buildInFlightRef.current = true;
     setBuilding(true);
     try {
       const { plan, usage: buildUsage } = await generatePlan({
@@ -213,12 +251,45 @@ function PlanStep() {
         },
       });
       setUsage(buildUsage ?? null);
-      await persist({ ...state, plan, completed: [], answers: {} });
+
+      const nextState: PrepState = { ...state, plan, completed: [], answers: {} };
+
+      if (isNewRoadmap) {
+        const created = createRoadmapLocal({ sourceState: nextState });
+        switchActiveRoadmapLocal(created.id);
+        setRoadmaps(listPrepRoadmapsLocal());
+        setActiveRoadmapId(created.id);
+        setState(created.state);
+        clearPrepDraftLocal();
+
+        if (signedIn) {
+          try {
+            await savePrep({
+              data: {
+                ...created.state,
+                roadmapId: created.id,
+                roadmapName: created.name,
+                roadmapColor: created.color,
+              },
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+
+        navigate({ to: "/prep/plan" });
+      } else {
+        await persist(nextState);
+      }
+
+      setCheatsheet(null);
+
       toast.success(`Plan built — ${plan.length} days`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Plan generation failed");
     } finally {
       setBuilding(false);
+      buildInFlightRef.current = false;
     }
   }
 
@@ -253,6 +324,7 @@ function PlanStep() {
       setUsage(refineUsage ?? null);
       const kept = state.plan.filter((d) => d.date < today);
       await persist({ ...state, plan: [...kept, ...newPlan] });
+      setCheatsheet(null);
       toast.success("Plan re-personalized from your answers");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Refinement failed");
@@ -268,7 +340,40 @@ function PlanStep() {
   }
 
   function reset() {
+    setCheatsheet(null);
     void persist({ ...state, plan: [], completed: [], answers: {} });
+  }
+
+  async function generateCheatsheet() {
+    if (cheatsheetInFlightRef.current || generatingCheatsheet) return;
+    if (state.plan.length === 0) {
+      toast.error("Generate your prep roadmap first.");
+      return;
+    }
+
+    cheatsheetInFlightRef.current = true;
+    setGeneratingCheatsheet(true);
+    try {
+      const { cheatsheet: generated, usage: generatedUsage } = await generateInterviewCheatsheet({
+        data: {
+          resumeText: state.resumeText,
+          resumeAnalysis: state.resumeAnalysis,
+          jobDescription: state.jobDescription,
+          jdAnalysis: state.jdAnalysis,
+          plan: state.plan,
+          answers: state.answers,
+          targetRole: roadmapDetails.role,
+        },
+      });
+      setCheatsheet(generated);
+      setUsage(generatedUsage ?? null);
+      toast.success("Interview cheatsheet ready.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate cheatsheet");
+    } finally {
+      setGeneratingCheatsheet(false);
+      cheatsheetInFlightRef.current = false;
+    }
   }
 
   const progress = state.plan.length
@@ -345,48 +450,50 @@ function PlanStep() {
       </div>
 
       <div className="surface mt-8 rounded-2xl border border-border p-6">
-        <div className="mb-5 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {roadmaps.map((roadmap) => {
-              const color = colorClasses(roadmap.color);
-              const active = roadmap.id === activeRoadmapId;
-              return (
-                <button
-                  key={roadmap.id}
-                  type="button"
-                  onClick={() => void switchRoadmap(roadmap.id)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                    active
-                      ? `${color.border} ${color.bg} ${color.text}`
-                      : "border-border bg-background text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Circle className="h-2.5 w-2.5 fill-current" />
-                  <span className="font-medium">{roadmap.name}</span>
-                  {roadmap.state.preferences.interviewDate && (
-                    <span className="font-mono text-[10px]">{roadmap.state.preferences.interviewDate}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        {!isNewRoadmap && (
+          <div className="mb-5 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {roadmaps.map((roadmap) => {
+                const color = colorClasses(roadmap.color);
+                const active = roadmap.id === activeRoadmapId;
+                return (
+                  <button
+                    key={roadmap.id}
+                    type="button"
+                    onClick={() => void switchRoadmap(roadmap.id)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                      active
+                        ? `${color.border} ${color.bg} ${color.text}`
+                        : "border-border bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Circle className="h-2.5 w-2.5 fill-current" />
+                    <span className="font-medium">{roadmap.name}</span>
+                    {roadmap.state.preferences.interviewDate && (
+                      <span className="font-mono text-[10px]">{roadmap.state.preferences.interviewDate}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={createRoadmap}>
-              <CopyPlus className="h-3.5 w-3.5" /> New roadmap
-            </Button>
-            {activeRoadmap && (
-              <Button variant="ghost" size="sm" onClick={renameRoadmap}>
-                Rename
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={createRoadmap}>
+                <CopyPlus className="h-3.5 w-3.5" /> New roadmap
               </Button>
-            )}
-            {roadmaps.length > 1 && activeRoadmap && (
-              <Button variant="ghost" size="sm" onClick={removeRoadmap}>
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </Button>
-            )}
+              {activeRoadmap && (
+                <Button variant="ghost" size="sm" onClick={renameRoadmap}>
+                  Rename
+                </Button>
+              )}
+              {roadmaps.length > 1 && activeRoadmap && (
+                <Button variant="ghost" size="sm" onClick={removeRoadmap}>
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={build} disabled={!canBuild || building}>
@@ -414,6 +521,7 @@ function PlanStep() {
           )}
           <Link
             to="/prep/jd"
+            search={isNewRoadmap ? { new: "1" } : undefined}
             className="ml-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> edit setup
@@ -425,14 +533,14 @@ function PlanStep() {
             {!state.jobDescription ? (
               <>
                 You need to paste a job description first. {" "}
-                <Link to="/prep/jd" className="text-terminal hover:underline">
+                <Link to="/prep/jd" search={isNewRoadmap ? { new: "1" } : undefined} className="text-terminal hover:underline">
                   Go to step 1 →
                 </Link>
               </>
             ) : (
               <>
                 Set your interview date or days-until in {" "}
-                <Link to="/prep/jd" className="text-terminal hover:underline">
+                <Link to="/prep/jd" search={isNewRoadmap ? { new: "1" } : undefined} className="text-terminal hover:underline">
                   step 1
                 </Link>
                 .
@@ -458,6 +566,123 @@ function PlanStep() {
 
       {state.plan.length > 0 && (
         <>
+          <div className="surface mt-6 rounded-2xl border border-border p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow">Interview Cheatsheet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Generate a concise final review using your roadmap questions, scored answers, resume, and JD.
+                </p>
+              </div>
+              <Button onClick={generateCheatsheet} disabled={generatingCheatsheet}>
+                {generatingCheatsheet ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Generate Interview Cheatsheet
+              </Button>
+            </div>
+
+            {cheatsheet && (
+              <div className="mt-5 space-y-5">
+                <section>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Most Likely Interview Questions
+                  </h3>
+                  <ol className="mt-2 space-y-1.5 text-sm">
+                    {cheatsheet.mostLikelyQuestions.map((q, idx) => (
+                      <li key={q} className="flex gap-2">
+                        <span className="font-mono text-xs text-muted-foreground">{idx + 1}.</span>
+                        <span>{q}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Your Best Answers
+                  </h3>
+                  <div className="mt-2 space-y-3">
+                    {cheatsheet.bestAnswers.map((item) => (
+                      <article key={item.question} className="rounded-xl border border-border bg-background/60 p-3.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">{item.question}</p>
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] ${cheatsheetLabelClass(item.label)}`}>
+                            {item.label}
+                          </span>
+                          {typeof item.score === "number" && (
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${scoreClass(item.score)}`}>
+                              {item.score}/10
+                            </span>
+                          )}
+                        </div>
+                        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          {item.talkingPoints.map((point) => (
+                            <li key={point} className="flex gap-2">
+                              <span className="text-terminal">•</span> {point}
+                            </li>
+                          ))}
+                        </ul>
+                        {item.note && <p className="mt-2 text-xs text-muted-foreground">{item.note}</p>}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <section className="rounded-xl border border-border bg-background/50 p-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      Key Stories / Examples to Remember
+                    </h3>
+                    <div className="mt-2 space-y-3">
+                      {cheatsheet.keyStories.map((story) => (
+                        <article key={story.title}>
+                          <p className="text-sm font-medium">{story.title}</p>
+                          <ul className="mt-1 space-y-1 text-sm text-muted-foreground">
+                            {story.points.map((point) => (
+                              <li key={point} className="flex gap-2">
+                                <span className="text-terminal">•</span> {point}
+                              </li>
+                            ))}
+                          </ul>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-border bg-background/50 p-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      Technical or Role-Specific Topics to Review
+                    </h3>
+                    <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                      {cheatsheet.topicsToReview.map((topic) => (
+                        <li key={topic.topic}>
+                          <p className="font-medium text-foreground">{topic.topic}</p>
+                          <p>{topic.reason}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </div>
+
+                <section>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Questions to Ask the Interviewer
+                  </h3>
+                  <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    {cheatsheet.questionsToAsk.map((q) => (
+                      <li key={q} className="flex gap-2">
+                        <span className="text-terminal">?</span> {q}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
+            )}
+          </div>
+
           <div className="surface mt-6 rounded-2xl border border-border p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold">Timeline calendar</h2>
@@ -862,6 +1087,18 @@ function colorClasses(color: RoadmapColor): { border: string; bg: string; text: 
     default:
       return { border: "border-terminal/40", bg: "bg-terminal/10", text: "text-terminal" };
   }
+}
+
+function cheatsheetLabelClass(label: "Your Answer" | "Improve This" | "Suggested Answer"): string {
+  if (label === "Your Answer") return "border-terminal/40 bg-terminal/10 text-terminal";
+  if (label === "Improve This") return "border-amber/40 bg-amber/10 text-amber";
+  return "border-sky-500/40 bg-sky-500/10 text-sky-600";
+}
+
+function scoreClass(score: number): string {
+  if (score >= 8) return "border-terminal/40 bg-terminal/10 text-terminal";
+  if (score >= 6) return "border-border bg-accent text-foreground";
+  return "border-amber/40 bg-amber/10 text-amber";
 }
 
 function formatDate(iso: string): string {

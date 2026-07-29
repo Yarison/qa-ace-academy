@@ -104,6 +104,7 @@ export const EMPTY_PREP: PrepState = {
 
 const LEGACY_KEY = "ai.prep.v2";
 const WORKSPACE_KEY = "ai.prep.workspace.v1";
+const DRAFT_KEY = "ai.prep.new-roadmap.draft.v1";
 const COLOR_ROTATION: RoadmapColor[] = ["terminal", "amber", "sky", "rose", "emerald", "indigo"];
 
 function cloneEmptyPrep(): PrepState {
@@ -356,6 +357,31 @@ export function clearPrepLocal() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(WORKSPACE_KEY);
   localStorage.removeItem(LEGACY_KEY);
+}
+
+export function loadPrepDraftLocal(): PrepState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return normalizePrep(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function savePrepDraftLocal(state: PrepState) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(normalizePrep(state)));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearPrepDraftLocal() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(DRAFT_KEY);
 }
 
 export function todayISO(): string {
