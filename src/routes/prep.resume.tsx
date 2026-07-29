@@ -4,7 +4,16 @@ import { Upload, Loader2, ArrowRight, ArrowLeft, FileText, Sparkles, X } from "l
 import { toast } from "sonner";
 import { analyzeResume, savePrep, loadPrep } from "@/lib/prep.functions";
 import type { AiUsageResult } from "@/lib/ai-usage.server";
-import { loadPrepLocal, savePrepLocal, EMPTY_PREP, type PrepState } from "@/lib/prep-storage";
+import {
+  loadPrepDraftLocal,
+  getActiveRoadmapLocal,
+  loadPrepLocal,
+  savePrepDraftLocal,
+  savePrepLocal,
+  EMPTY_PREP,
+  type PrepRoadmap,
+  type PrepState,
+} from "@/lib/prep-storage";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -19,12 +28,18 @@ export const Route = createFileRoute("/prep/resume")({
       },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: typeof s.new === "string" ? s.new : "",
+  }),
   component: ResumeStep,
 });
 
 function ResumeStep() {
   const navigate = useNavigate();
+  const { new: createMode } = Route.useSearch();
+  const isNewRoadmap = createMode === "1";
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [activeRoadmap, setActiveRoadmap] = useState<PrepRoadmap | null>(null);
   const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -33,31 +48,59 @@ function ResumeStep() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
-    const local = loadPrepLocal();
+    if (isNewRoadmap) {
+      const draft = loadPrepDraftLocal() ?? EMPTY_PREP;
+      setActiveRoadmap(null);
+      setState(draft);
+      setText(draft.resumeText ?? "");
+      supabase.auth.getSession().then(({ data }) => {
+        setSignedIn(!!data.session);
+      });
+      return;
+    }
+
+    const active = getActiveRoadmapLocal();
+    setActiveRoadmap(active);
+    const local = active.state ?? loadPrepLocal();
     setState(local);
     setText(local.resumeText ?? "");
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
         setSignedIn(true);
         try {
-          const remote = await loadPrep();
+          const remote = await loadPrep({ data: { roadmapId: active.id } });
           if (remote) {
-            setState((s) => ({ ...s, ...remote }));
+            const merged = { ...local, ...remote };
+            setState(merged);
             setText(remote.resumeText ?? "");
-            savePrepLocal({ ...local, ...remote });
+            savePrepLocal(merged);
           }
         } catch {
           /* ignore */
         }
       }
     });
-  }, []);
+  }, [isNewRoadmap]);
 
   async function persist(next: PrepState) {
+    if (isNewRoadmap) {
+      setState(next);
+      savePrepDraftLocal(next);
+      return;
+    }
+
     savePrepLocal(next);
+    setActiveRoadmap((prev) => (prev ? { ...prev, state: next } : prev));
     if (signedIn) {
       try {
-        await savePrep({ data: next });
+        await savePrep({
+          data: {
+            ...next,
+            roadmapId: activeRoadmap?.id,
+            roadmapName: activeRoadmap?.name,
+            roadmapColor: activeRoadmap?.color,
+          },
+        });
       } catch {
         /* ignore */
       }
@@ -193,12 +236,13 @@ function ResumeStep() {
           ) : null}
           <Link
             to="/prep/jd"
+            search={isNewRoadmap ? { new: "1" } : undefined}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> back to JD
           </Link>
           <button
-            onClick={() => navigate({ to: "/prep/plan" })}
+            onClick={() => navigate({ to: "/prep/plan", search: isNewRoadmap ? { new: "1" } : undefined })}
             className="ml-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             Skip to plan <ArrowRight className="h-3.5 w-3.5" />
@@ -243,7 +287,7 @@ function ResumeStep() {
           </div>
 
           <div className="mt-6 flex justify-end">
-            <Button onClick={() => navigate({ to: "/prep/plan" })}>
+            <Button onClick={() => navigate({ to: "/prep/plan", search: isNewRoadmap ? { new: "1" } : undefined })}>
               Next: build my plan <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

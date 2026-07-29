@@ -144,6 +144,9 @@ const PlanInput = z.object({
   jdAnalysis: JdSchema.nullable(),
   resumeAnalysis: ResumeSchema.nullable(),
   experienceLevel: z.enum(["beginner", "intermediate", "experienced"]),
+  interviewType: z
+    .enum(["general", "behavioral", "technical", "case", "panel", "take-home"])
+    .optional(),
   hoursPerDay: z.number().min(1).max(12),
   days: z.number().int().min(1).max(60),
   startDate: z.string(), // ISO
@@ -169,6 +172,7 @@ export const generatePlan = createServerFn({ method: "POST" })
 Rules:
 - Return exactly ${data.days} entries in "plan", one per day, starting on ${data.startDate}. Increment date by one day each entry (YYYY-MM-DD).
 - Each day's estimatedHours must be <= ${data.hoursPerDay} (respect the candidate's time budget).
+- Adapt to interviewType="${data.interviewType ?? "general"}". Example: behavioral -> stories/leadership; technical -> hard-skill drills; case -> frameworks/quantitative structuring; panel -> cross-functional communication.
 - Tailor the plan to the candidate's experienceLevel="${data.experienceLevel}": beginners spend more time on foundations, experienced candidates focus on advanced/behavioral/company-specific prep.
 - Prioritize gaps: missing skills from the resume vs JD, weak areas, and topics the employer emphasizes.
 - focusArea should be a short category (e.g. "Technical foundations", "Tools mastery", "Behavioral stories", "Industry knowledge", "Mock interview", "Rest & review").
@@ -177,12 +181,14 @@ Rules:
 - If days >= 3, dedicate the second-to-last day to a full mock interview.
 - The last day is always light: rest, review notes, prepare questions for the interviewer.
 - Front-load high-priority gaps; back-load review and behavioral prep.
+- If days <= 2, do NOT create a full curriculum. Build a triage plan: only highest-value activities with immediate interview impact, concrete rehearsal, and targeted likely questions from this JD.
 - questions: 3-5 realistic interview questions the candidate should be able to answer at the end of that day. Match the day's focusArea and topics. Behavioral days -> behavioral questions; technical/tools days -> technical/scenario questions. Be specific to THIS role. Skip questions on pure "Rest & review" days.
 - Be specific to THIS role — no generic filler.`,
       prompt: `startDate: ${data.startDate}
 days: ${data.days}
 hoursPerDay: ${data.hoursPerDay}
 experienceLevel: ${data.experienceLevel}
+interviewType: ${data.interviewType ?? "general"}
 
 Job description:
 """${data.jobDescription.slice(0, 6000)}"""
@@ -265,6 +271,9 @@ const RefineInput = z.object({
   jdAnalysis: JdSchema.nullable(),
   resumeAnalysis: ResumeSchema.nullable(),
   experienceLevel: z.enum(["beginner", "intermediate", "experienced"]),
+  interviewType: z
+    .enum(["general", "behavioral", "technical", "case", "panel", "take-home"])
+    .optional(),
   hoursPerDay: z.number().min(1).max(12),
   startDate: z.string(),
   remainingDays: z.number().int().min(1).max(60),
@@ -304,14 +313,17 @@ export const refinePlan = createServerFn({ method: "POST" })
 Rules:
 - Return exactly ${data.remainingDays} entries in "plan", one per day, starting on ${data.startDate} (YYYY-MM-DD, incrementing daily).
 - Each estimatedHours <= ${data.hoursPerDay}.
+- Adapt to interviewType="${data.interviewType ?? "general"}" and prioritize what that interview format rewards.
 - Aggressively prioritize the aggregated weakAreas below — the weaker the past answers, the more days you spend re-drilling those gaps with fresh angles and harder follow-ups.
 - Keep topics/activities specific to THIS role. Include a mock interview day near the end if remainingDays >= 3, and a light review on the final day.
+- If remainingDays <= 2, build a triage plan with only the highest-leverage activities and role-specific likely questions; avoid broad coverage.
 - questions: 3-5 targeted interview questions per day that directly probe the identified weak areas (or the day's focus).
 - Do NOT repeat identical questions the candidate already answered.`,
       prompt: `startDate: ${data.startDate}
 remainingDays: ${data.remainingDays}
 hoursPerDay: ${data.hoursPerDay}
 experienceLevel: ${data.experienceLevel}
+interviewType: ${data.interviewType ?? "general"}
 avgScore: ${avgScore}
 
 Aggregated weak areas from past answers (prioritize these):
@@ -335,6 +347,253 @@ ${JSON.stringify(data.resumeAnalysis)}`,
     });
 
     return { plan: result.experimental_output.plan, usage };
+  });
+
+// ---------- Interview cheatsheet ----------
+
+const CheatsheetInput = z.object({
+  resumeText: z.string().max(20000).optional(),
+  resumeAnalysis: ResumeSchema.nullable().optional(),
+  jobDescription: z.string().min(10).max(10000),
+  jdAnalysis: JdSchema.nullable().optional(),
+  plan: z.array(PlanDaySchema).max(60),
+  answers: z
+    .record(
+      z.string(),
+      z.array(
+        z.object({
+          question: z.string(),
+          answer: z.string(),
+          score: z.number(),
+          feedback: z.string(),
+          weakAreas: z.array(z.string()),
+          followUpQuestions: z.array(z.string()),
+          exampleAnswer: z.string().nullable().optional(),
+          answeredAt: z.string(),
+        }),
+      ),
+    )
+    .optional(),
+  targetRole: z.string().max(200).optional(),
+});
+
+const CheatsheetAnswerItemSchema = z.object({
+  question: z.string().max(320),
+  label: z.enum(["Your Answer", "Improve This", "Suggested Answer"]),
+  score: z.number().min(0).max(10).nullable(),
+  talkingPoints: z.array(z.string()).min(2).max(5),
+  note: z.string().max(240).nullable().optional(),
+});
+
+const CheatsheetStorySchema = z.object({
+  title: z.string().max(160),
+  points: z.array(z.string()).min(2).max(4),
+});
+
+const CheatsheetTopicSchema = z.object({
+  topic: z.string().max(140),
+  reason: z.string().max(220),
+});
+
+const CheatsheetSchema = z.object({
+  mostLikelyQuestions: z.array(z.string().max(320)).min(5).max(12),
+  bestAnswers: z.array(CheatsheetAnswerItemSchema).min(5).max(12),
+  keyStories: z.array(CheatsheetStorySchema).max(6),
+  topicsToReview: z.array(CheatsheetTopicSchema).max(8),
+  questionsToAsk: z.array(z.string().max(220)).min(4).max(10),
+});
+
+export type InterviewCheatsheet = z.infer<typeof CheatsheetSchema>;
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(value: string): Set<string> {
+  const stop = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "from",
+    "into",
+    "your",
+    "have",
+    "about",
+    "what",
+    "when",
+    "where",
+    "would",
+    "could",
+    "should",
+    "did",
+    "are",
+    "how",
+    "you",
+    "why",
+    "tell",
+    "describe",
+    "through",
+    "explain",
+  ]);
+  return new Set(
+    normalizeText(value)
+      .split(" ")
+      .filter((t) => t.length > 2 && !stop.has(t)),
+  );
+}
+
+function overlapScore(a: string, b: string): number {
+  const aTokens = tokenize(a);
+  const bTokens = tokenize(b);
+  if (aTokens.size === 0 || bTokens.size === 0) return 0;
+  let overlap = 0;
+  for (const token of aTokens) {
+    if (bTokens.has(token)) overlap += 1;
+  }
+  return overlap / Math.max(aTokens.size, bTokens.size);
+}
+
+type FlatAnswer = {
+  question: string;
+  answer: string;
+  score: number;
+  feedback: string;
+  weakAreas: string[];
+  followUpQuestions: string[];
+  exampleAnswer?: string | null;
+  answeredAt: string;
+  date: string;
+};
+
+function findBestAnswerMatch(question: string, answers: FlatAnswer[]): FlatAnswer | null {
+  const qNorm = normalizeText(question);
+  let best: FlatAnswer | null = null;
+  let bestScore = 0;
+
+  for (const answer of answers) {
+    const aQuestionNorm = normalizeText(answer.question);
+    const base = overlapScore(qNorm, aQuestionNorm);
+    const directBoost =
+      qNorm.includes(aQuestionNorm) || aQuestionNorm.includes(qNorm)
+        ? 0.35
+        : 0;
+    const scoreBoost = answer.score >= 6 ? 0.08 : 0;
+    const total = base + directBoost + scoreBoost;
+    if (total > bestScore) {
+      bestScore = total;
+      best = answer;
+    }
+  }
+
+  return bestScore >= 0.22 ? best : null;
+}
+
+export const generateInterviewCheatsheet = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
+  .inputValidator((data: unknown) => CheatsheetInput.parse(data))
+  .handler(async ({ data }) => {
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(4);
+    const gateway = createGeminiProvider(key);
+
+    const planQuestions = data.plan.flatMap((d) => d.questions ?? []);
+    const jdLikelyQuestions = data.jdAnalysis?.likelyQuestions ?? [];
+
+    const likelyQuestions = Array.from(
+      new Set([...jdLikelyQuestions, ...planQuestions].map((q) => q.trim()).filter(Boolean)),
+    ).slice(0, 12);
+
+    if (likelyQuestions.length === 0) {
+      throw new Error("No roadmap questions found yet. Generate a plan with practice questions first.");
+    }
+
+    const flatAnswers: FlatAnswer[] = Object.entries(data.answers ?? {}).flatMap(([date, entries]) =>
+      entries.map((entry) => ({ ...entry, date })),
+    );
+
+    const matched = likelyQuestions.map((question) => {
+      const best = findBestAnswerMatch(question, flatAnswers);
+      if (!best) {
+        return {
+          question,
+          label: "Suggested Answer" as const,
+          score: null,
+          answer: null,
+          feedback: null,
+          weakAreas: [] as string[],
+        };
+      }
+      if (best.score >= 6) {
+        return {
+          question,
+          label: "Your Answer" as const,
+          score: best.score,
+          answer: best.answer,
+          feedback: best.feedback,
+          weakAreas: best.weakAreas,
+        };
+      }
+      return {
+        question,
+        label: "Improve This" as const,
+        score: best.score,
+        answer: best.answer,
+        feedback: best.feedback,
+        weakAreas: best.weakAreas,
+      };
+    });
+
+    const result = await generateText({
+      model: gateway("gemini-3.1-flash-lite"),
+      system: `You are an interview coach preparing a final pre-interview cheatsheet.
+
+Output requirements:
+- Keep every item concise and practical for immediate use.
+- Prefer short talking points, not long paragraphs.
+- Never invent candidate experience that is not supported by resume/jd context.
+- Respect each label exactly:
+  - "Your Answer": Use the candidate's own answer as the primary source. Tighten phrasing only.
+  - "Improve This": Base suggestions directly on the candidate's existing answer and weaknesses.
+  - "Suggested Answer": Build an answer only from supported resume/JD context; if evidence is thin, be transparent.
+- Most likely questions must align with role and roadmap.
+- Questions to ask interviewer should be thoughtful and specific to the role/company context in the JD.
+`,
+      prompt: `Target role: ${data.targetRole ?? "Unknown role"}
+
+Resume text (may be partial):
+"""${(data.resumeText ?? "").slice(0, 8000)}"""
+
+Resume analysis:
+${JSON.stringify(data.resumeAnalysis ?? null)}
+
+Job description:
+"""${data.jobDescription.slice(0, 7000)}"""
+
+JD analysis:
+${JSON.stringify(data.jdAnalysis ?? null)}
+
+Roadmap-derived likely interview questions:
+${JSON.stringify(likelyQuestions)}
+
+Question matching with answer priority labels:
+${JSON.stringify(matched)}
+
+Generate the full cheatsheet now.`,
+      experimental_output: Output.object({ schema: CheatsheetSchema }),
+    });
+
+    return {
+      cheatsheet: result.experimental_output,
+      usage,
+    };
   });
 
 // ---------- Persistence (signed-in users only) ----------
@@ -363,52 +622,73 @@ const PrepStateSchema = z
   })
   .passthrough();
 
+const SavePrepInput = PrepStateSchema.extend({
+  roadmapId: z.string().min(1).max(120).optional(),
+  roadmapName: z.string().min(1).max(120).optional(),
+  roadmapColor: z.string().min(1).max(40).optional(),
+});
+
 export const savePrep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => PrepStateSchema.parse(data))
+  .inputValidator((data: unknown) => SavePrepInput.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase.from("prep_sessions").upsert(
+    const roadmapId = data.roadmapId ?? "roadmap-1";
+    const interviewDate = data.interviewDate ?? ((data as { preferences?: { interviewDate?: string | null } }).preferences?.interviewDate ?? null);
+    const prepSessions = supabase.from("prep_sessions") as any;
+    const { error } = await prepSessions.upsert(
       {
         user_id: userId,
+        roadmap_id: roadmapId,
+        roadmap_name: data.roadmapName ?? null,
+        roadmap_color: data.roadmapColor ?? null,
         resume_text: data.resumeText,
         resume_analysis: data.resumeAnalysis,
         job_description: data.jobDescription,
         jd_analysis: data.jdAnalysis,
-        interview_date: data.interviewDate ?? null,
+        interview_date: interviewDate,
         plan: data.plan,
         completed: data.completed,
         answers: data.answers ?? {},
       },
-      { onConflict: "user_id" },
+      { onConflict: "user_id,roadmap_id" },
     );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
+const LoadPrepInput = z
+  .object({
+    roadmapId: z.string().min(1).max(120).optional(),
+  })
+  .optional();
+
 export const loadPrep = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: unknown) => LoadPrepInput.parse(data))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("prep_sessions")
+    const roadmapId = data?.roadmapId ?? "roadmap-1";
+    const prepSessions = supabase.from("prep_sessions") as any;
+    const { data: row, error } = await prepSessions
       .select(
         "resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed, answers",
       )
       .eq("user_id", userId)
+      .eq("roadmap_id", roadmapId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) return null;
+    if (!row) return null;
     return {
-      resumeText: data.resume_text ?? "",
-      resumeAnalysis: (data.resume_analysis as z.infer<typeof ResumeSchema> | null) ?? null,
-      jobDescription: data.job_description ?? "",
-      jdAnalysis: (data.jd_analysis as z.infer<typeof JdSchema> | null) ?? null,
-      interviewDate: data.interview_date ?? null,
-      plan: (data.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
-      completed: (data.completed as string[] | null) ?? [],
+      resumeText: row.resume_text ?? "",
+      resumeAnalysis: (row.resume_analysis as z.infer<typeof ResumeSchema> | null) ?? null,
+      jobDescription: row.job_description ?? "",
+      jdAnalysis: (row.jd_analysis as z.infer<typeof JdSchema> | null) ?? null,
+      interviewDate: row.interview_date ?? null,
+      plan: (row.plan as z.infer<typeof PlanDaySchema>[] | null) ?? [],
+      completed: (row.completed as string[] | null) ?? [],
       answers:
-        ((data as { answers?: unknown }).answers as Record<
+        ((row as { answers?: unknown }).answers as Record<
           string,
           z.infer<typeof TaskAnswerSchema>[]
         > | null) ?? {},

@@ -4,13 +4,18 @@ import { Loader2, ArrowRight, Sparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { analyzeJd, savePrep, loadPrep } from "@/lib/prep.functions";
 import {
+  getActiveRoadmapLocal,
+  loadPrepDraftLocal,
   loadPrepLocal,
+  savePrepDraftLocal,
   savePrepLocal,
   EMPTY_PREP,
   todayISO,
   daysBetween,
   type PrepState,
   type ExperienceLevel,
+  type InterviewType,
+  type PrepRoadmap,
 } from "@/lib/prep-storage";
 import type { AiUsageResult } from "@/lib/ai-usage.server";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +32,9 @@ export const Route = createFileRoute("/prep/jd")({
       },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: typeof s.new === "string" ? s.new : "",
+  }),
   component: JdStep,
 });
 
@@ -40,7 +48,10 @@ type DateMode = "date" | "days";
 
 function JdStep() {
   const navigate = useNavigate();
+  const { new: createMode } = Route.useSearch();
+  const isNewRoadmap = createMode === "1";
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [activeRoadmap, setActiveRoadmap] = useState<PrepRoadmap | null>(null);
   const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [jd, setJd] = useState("");
   const [dateMode, setDateMode] = useState<DateMode>("date");
@@ -48,11 +59,36 @@ function JdStep() {
   const [daysUntil, setDaysUntil] = useState<number>(7);
   const [hoursPerDay, setHoursPerDay] = useState<number>(2);
   const [level, setLevel] = useState<ExperienceLevel>("intermediate");
+  const [interviewType, setInterviewType] = useState<InterviewType>("general");
   const [running, setRunning] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
-    const local = loadPrepLocal();
+    if (isNewRoadmap) {
+      const draft = loadPrepDraftLocal() ?? EMPTY_PREP;
+      setActiveRoadmap(null);
+      setState(draft);
+      setJd(draft.jobDescription ?? "");
+      setInterviewDate(draft.preferences.interviewDate ?? "");
+      if (draft.preferences.daysUntil) {
+        setDaysUntil(draft.preferences.daysUntil);
+        setDateMode("days");
+      } else {
+        setDateMode("date");
+      }
+      setHoursPerDay(draft.preferences.hoursPerDay);
+      setLevel(draft.preferences.experienceLevel);
+      setInterviewType(draft.preferences.interviewType ?? "general");
+
+      supabase.auth.getSession().then(({ data }) => {
+        setSignedIn(!!data.session);
+      });
+      return;
+    }
+
+    const active = getActiveRoadmapLocal();
+    setActiveRoadmap(active);
+    const local = active.state ?? loadPrepLocal();
     setState(local);
     setJd(local.jobDescription ?? "");
     setInterviewDate(local.preferences.interviewDate ?? "");
@@ -62,14 +98,24 @@ function JdStep() {
     }
     setHoursPerDay(local.preferences.hoursPerDay);
     setLevel(local.preferences.experienceLevel);
+    setInterviewType(local.preferences.interviewType ?? "general");
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
         setSignedIn(true);
         try {
-          const remote = await loadPrep();
+          const remote = await loadPrep({ data: { roadmapId: active.id } });
           if (remote) {
-            setState((s) => ({ ...s, ...remote }));
+            const merged: PrepState = {
+              ...local,
+              ...remote,
+              preferences: {
+                ...local.preferences,
+                interviewDate: remote.interviewDate ?? local.preferences.interviewDate,
+              },
+            };
+            setState(merged);
+            savePrepLocal(merged);
             setJd(remote.jobDescription ?? "");
             if (remote.interviewDate) {
               setInterviewDate(remote.interviewDate);
@@ -81,7 +127,7 @@ function JdStep() {
         }
       }
     });
-  }, []);
+  }, [isNewRoadmap]);
 
   const setupValid = useMemo(() => {
     if (hoursPerDay < 1 || hoursPerDay > 12) return false;
@@ -93,11 +139,25 @@ function JdStep() {
   }, [dateMode, interviewDate, daysUntil, hoursPerDay]);
 
   async function persist(next: PrepState) {
+    if (isNewRoadmap) {
+      savePrepDraftLocal(next);
+      setState(next);
+      return;
+    }
+
     savePrepLocal(next);
     setState(next);
+    setActiveRoadmap((prev) => (prev ? { ...prev, state: next } : prev));
     if (signedIn) {
       try {
-        await savePrep({ data: next });
+        await savePrep({
+          data: {
+            ...next,
+            roadmapId: activeRoadmap?.id,
+            roadmapName: activeRoadmap?.name,
+            roadmapColor: activeRoadmap?.color,
+          },
+        });
       } catch {
         /* ignore */
       }
@@ -132,6 +192,7 @@ function JdStep() {
           daysUntil: dateMode === "days" ? daysUntil : null,
           hoursPerDay,
           experienceLevel: level,
+          interviewType,
         },
       };
       await persist(next);
@@ -156,10 +217,11 @@ function JdStep() {
         daysUntil: dateMode === "days" ? daysUntil : null,
         hoursPerDay,
         experienceLevel: level,
+        interviewType,
       },
     };
     await persist(next);
-    navigate({ to: "/prep/resume" });
+    navigate({ to: "/prep/resume", search: isNewRoadmap ? { new: "1" } : undefined });
   }
 
   const j = state.jdAnalysis;
@@ -277,6 +339,22 @@ function JdStep() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Interview type</label>
+          <select
+            value={interviewType}
+            onChange={(e) => setInterviewType(e.target.value as InterviewType)}
+            className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-terminal/60"
+          >
+            <option value="general">General</option>
+            <option value="behavioral">Behavioral</option>
+            <option value="technical">Technical / hard-skills</option>
+            <option value="case">Case</option>
+            <option value="panel">Panel</option>
+            <option value="take-home">Take-home / assignment review</option>
+          </select>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

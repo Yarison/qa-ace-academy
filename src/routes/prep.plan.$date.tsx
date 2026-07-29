@@ -4,9 +4,11 @@ import { ArrowLeft, Check, Clock, Loader2, Sparkles, Send, RotateCcw } from "luc
 import { evaluateAnswer, loadPrep, savePrep } from "@/lib/prep.functions";
 import type { AiUsageResult } from "@/lib/ai-usage.server";
 import {
+  getActiveRoadmapLocal,
   loadPrepLocal,
   savePrepLocal,
   EMPTY_PREP,
+  type PrepRoadmap,
   type PrepState,
   type TaskAnswer,
 } from "@/lib/prep-storage";
@@ -45,18 +47,21 @@ export const Route = createFileRoute("/prep/plan/$date")({
 function DayDetail() {
   const { date } = Route.useParams();
   const [state, setState] = useState<PrepState>(EMPTY_PREP);
+  const [activeRoadmap, setActiveRoadmap] = useState<PrepRoadmap | null>(null);
   const [usage, setUsage] = useState<AiUsageResult | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setState(loadPrepLocal());
+    const active = getActiveRoadmapLocal();
+    setActiveRoadmap(active);
+    setState(active.state ?? loadPrepLocal());
     setHydrated(true);
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
         setSignedIn(true);
         try {
-          const remote = await loadPrep();
+          const remote = await loadPrep({ data: { roadmapId: active.id } });
           if (remote) setState((s) => ({ ...s, ...remote }));
         } catch {
           /* ignore */
@@ -70,9 +75,17 @@ function DayDetail() {
   async function persist(next: PrepState) {
     setState(next);
     savePrepLocal(next);
+    setActiveRoadmap((prev) => (prev ? { ...prev, state: next } : prev));
     if (signedIn) {
       try {
-        await savePrep({ data: next });
+        await savePrep({
+          data: {
+            ...next,
+            roadmapId: activeRoadmap?.id,
+            roadmapName: activeRoadmap?.name,
+            roadmapColor: activeRoadmap?.color,
+          },
+        });
       } catch {
         /* ignore */
       }
