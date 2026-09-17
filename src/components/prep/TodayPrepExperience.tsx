@@ -42,6 +42,7 @@ export function TodayPrepExperience() {
   const navigate = useNavigate();
   const [roadmaps, setRoadmaps] = useState<PrepRoadmap[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
+  const [usageSummary, setUsageSummary] = useState<{ tier: string; remaining: number; limit: number } | null>(null);
 
   useEffect(() => {
     const localRoadmaps = listPrepRoadmapsLocal();
@@ -53,7 +54,7 @@ export function TodayPrepExperience() {
 
       const profileResult = await supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, tier")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -64,7 +65,20 @@ export function TodayPrepExperience() {
             ? user.user_metadata.name
             : null;
 
+      const tier = profileResult.data?.tier ?? "free";
       setUserName(profileResult.data?.display_name ?? metadataName);
+
+      const usageDate = new Date().toISOString().slice(0, 10);
+      const { data: usageRow } = await supabase
+        .from("ai_usage_user_daily")
+        .select("points_used")
+        .eq("user_id", user.id)
+        .eq("date", usageDate)
+        .maybeSingle();
+
+      const limit = tier === "tier1" ? 80 : tier === "tier2" ? 160 : 40;
+      const remaining = Math.max(0, limit - Number(usageRow?.points_used ?? 0));
+      setUsageSummary({ tier, remaining, limit });
 
       const synced = await Promise.all(
         localRoadmaps.map(async (roadmap) => {
@@ -186,11 +200,25 @@ export function TodayPrepExperience() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       <header className="surface rounded-2xl border border-border p-6">
-        <p className="eyebrow">Today's Prep</p>
-        <h1 className="display-2 mt-2">{userName ? `Good morning, ${userName}` : "Good morning"}</h1>
-        <p className="mt-3 max-w-2xl text-muted-foreground">
-          Your focused daily prep workspace. Start here to continue today's preparation.
-        </p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="eyebrow">Today's Prep</p>
+            <h1 className="display-2 mt-2">{userName ? `Good morning, ${userName}` : "Good morning"}</h1>
+            <p className="mt-3 max-w-2xl text-muted-foreground">
+              Your focused daily prep workspace. Start here to continue today's preparation.
+            </p>
+          </div>
+          {usageSummary && (
+            <div className="rounded-xl border border-border bg-background/60 p-3 text-sm">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Current plan</div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="font-semibold capitalize">{usageSummary.tier.replace("tier", "Tier ")}</span>
+                <span className="text-muted-foreground">•</span>
+                <span>{usageSummary.remaining} / {usageSummary.limit} AI points left today</span>
+              </div>
+            </div>
+          )}
+        </div>
       </header>
 
       <section className="mt-6 surface rounded-2xl border border-border p-5">

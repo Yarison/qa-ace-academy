@@ -91,18 +91,24 @@ export type Database = {
           created_at: string;
           display_name: string | null;
           id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
           tier: string;
         };
         Insert: {
           created_at?: string;
           display_name?: string | null;
           id: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
           tier?: string;
         };
         Update: {
           created_at?: string;
           display_name?: string | null;
           id?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
           tier?: string;
         };
         Relationships: [];
@@ -221,6 +227,15 @@ export type Database = {
       consume_anonymous_ai_call: {
         Args: { p_ip_address: string };
         Returns: Array<{ remaining: number; limit_value: number }>;
+      };
+      set_user_tier: {
+        Args: {
+          p_user_id: string;
+          p_tier: string;
+          p_stripe_customer_id?: string | null;
+          p_stripe_subscription_id?: string | null;
+        };
+        Returns: void;
       };
     };
     Enums: {

@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as MockRouteImport } from './routes/mock'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as PrepRouteImport } from './routes/prep'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -25,6 +26,7 @@ import { Route as PrepJdRouteImport } from './routes/prep.jd'
 import { Route as PrepResumeRouteImport } from './routes/prep.resume'
 import { Route as PrepTodayRouteImport } from './routes/prep.today'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe.webhook'
 import { Route as PrepPlanIndexRouteImport } from './routes/prep.plan.index'
 import { Route as PrepPlanDateRouteImport } from './routes/prep.plan.$date'
 
@@ -55,6 +57,11 @@ const PracticeRoute = PracticeRouteImport.update({
 const PrepRoute = PrepRouteImport.update({
   id: '/prep',
   path: '/prep',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SqlPlaygroundRoute = SqlPlaygroundRouteImport.update({
@@ -107,6 +114,11 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe/webhook',
+  path: '/api/stripe/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrepPlanIndexRoute = PrepPlanIndexRouteImport.update({
   id: '/plan/',
   path: '/plan/',
@@ -124,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
+  '/pricing': typeof PricingRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
@@ -134,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan/': typeof PrepPlanIndexRoute
 }
@@ -141,6 +155,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mock': typeof MockRoute
+  '/pricing': typeof PricingRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
@@ -151,6 +166,7 @@ export interface FileRoutesByTo {
   '/practice': typeof PracticeIndexRoute
   '/prep': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan': typeof PrepPlanIndexRoute
 }
@@ -162,6 +178,7 @@ export interface FileRoutesById {
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
+  '/pricing': typeof PricingRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
@@ -172,6 +189,7 @@ export interface FileRoutesById {
   '/practice/': typeof PracticeIndexRoute
   '/prep/': typeof PrepIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/prep/plan/$date': typeof PrepPlanDateRoute
   '/prep/plan/': typeof PrepPlanIndexRoute
 }
@@ -183,6 +201,7 @@ export interface FileRouteTypes {
     | '/mock'
     | '/practice'
     | '/prep'
+    | '/pricing'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
@@ -193,6 +212,7 @@ export interface FileRouteTypes {
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
+    | '/api/stripe/webhook'
     | '/prep/plan/$date'
     | '/prep/plan/'
   fileRoutesByTo: FileRoutesByTo
@@ -200,6 +220,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/mock'
+    | '/pricing'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
@@ -210,6 +231,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/prep'
     | '/.lovable/oauth/consent'
+    | '/api/stripe/webhook'
     | '/prep/plan/$date'
     | '/prep/plan'
   id:
@@ -220,6 +242,7 @@ export interface FileRouteTypes {
     | '/mock'
     | '/practice'
     | '/prep'
+    | '/pricing'
     | '/sql-playground'
     | '/_authenticated/history'
     | '/api/chat'
@@ -230,6 +253,7 @@ export interface FileRouteTypes {
     | '/practice/'
     | '/prep/'
     | '/.lovable/oauth/consent'
+    | '/api/stripe/webhook'
     | '/prep/plan/$date'
     | '/prep/plan/'
   fileRoutesById: FileRoutesById
@@ -241,9 +265,11 @@ export interface RootRouteChildren {
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
   PrepRoute: typeof PrepRouteWithChildren
+  PricingRoute: typeof PricingRoute
   SqlPlaygroundRoute: typeof SqlPlaygroundRoute
   ApiChatRoute: typeof ApiChatRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -288,6 +314,13 @@ declare module '@tanstack/react-router' {
       path: '/prep'
       fullPath: '/prep'
       preLoaderRoute: typeof PrepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sql-playground': {
@@ -360,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/stripe/webhook': {
+      id: '/api/stripe/webhook'
+      path: '/api/stripe/webhook'
+      fullPath: '/api/stripe/webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/prep/plan/': {
       id: '/prep/plan/'
       path: '/plan'
@@ -429,9 +469,11 @@ const rootRouteChildren: RootRouteChildren = {
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
   PrepRoute: PrepRouteWithChildren,
+  PricingRoute: PricingRoute,
   SqlPlaygroundRoute: SqlPlaygroundRoute,
   ApiChatRoute: ApiChatRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

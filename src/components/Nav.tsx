@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { createPortalSession } from "@/lib/billing.functions";
 import type { Session } from "@supabase/supabase-js";
 
 const links = [
@@ -12,11 +13,38 @@ const links = [
 
 export function Nav() {
   const [session, setSession] = useState<Session | null>(null);
+  const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const syncSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const nextSession = data.session;
+      setSession(nextSession);
+
+      if (!nextSession) {
+        setHasStripeSubscription(false);
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("stripe_subscription_id")
+        .eq("id", nextSession.user.id)
+        .maybeSingle();
+
+      if (!error) {
+        setHasStripeSubscription(Boolean(profile?.stripe_subscription_id));
+      }
+    };
+
+    syncSession();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      if (!s) {
+        setHasStripeSubscription(false);
+      }
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -46,6 +74,13 @@ export function Nav() {
           {session ? (
             <>
               <Link
+                to="/pricing"
+                search={{}}
+                className="rounded-full px-3 py-1.5 border border-transparent text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Pricing
+              </Link>
+              <Link
                 to="/history"
                 search={{ next: "" }}
                 className="rounded-full px-3 py-1.5 border border-transparent text-muted-foreground transition-colors hover:text-foreground"
@@ -56,6 +91,22 @@ export function Nav() {
               >
                 History
               </Link>
+              {hasStripeSubscription && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const result = await createPortalSession({ data: {} });
+                      if (result?.url) window.location.assign(result.url);
+                    } catch (error) {
+                      console.error("Unable to open Stripe portal:", error);
+                    }
+                  }}
+                  className="rounded-full px-3 py-1.5 border border-border text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Manage billing
+                </button>
+              )}
               <button
                 onClick={async () => {
                   await supabase.auth.signOut();

@@ -1,16 +1,16 @@
 import { getRequest, getRequestIP } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { TIER_LIMITS } from "@/lib/tiers";
 
 export type AiUsageResult =
   | { type: "anonymous"; remaining: number; limit_value: number }
   | { type: "signed-in"; remaining: number; limit_value: number; tier: string };
 
-const TIER_LIMITS: Record<string, number> = {
-  free: 40,
-  tier1: 80,
-  tier2: 160,
-};
+// Keep this in sync with the Postgres v_limit CASE in the tiered AI usage migration.
+// The database function is the source of truth for atomic enforcement; this JS map is
+// shared via the client-safe tiers helper and used for display values.
+export { TIER_LIMITS };
 
 // ---------------------------------------------------------------------------
 // Supabase client helpers
