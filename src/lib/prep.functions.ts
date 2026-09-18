@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { generateText, Output } from "ai";
+import { generateObject, generateText, Output } from "ai";
 import { z } from "zod";
 import { createGeminiProvider } from "@/lib/ai-gateway.server";
 import { checkAndConsumeAiUsage } from "@/lib/ai-usage.server";
@@ -15,7 +15,7 @@ const ResumeInput = z
   })
   .refine((v) => v.text || v.pdfBase64, { message: "Provide text or PDF" });
 
-const ResumeSchema = z.object({
+export const ResumeSchema = z.object({
   yearsExperience: z.number().min(0).max(60),
   skills: z.array(z.string()).max(40),
   weakAreas: z.array(z.string()).max(20),
@@ -79,6 +79,28 @@ export const analyzeResume = createServerFn({ method: "POST" })
 
 // ---------- JD analysis (universal, any profession) ----------
 
+const GeneratedResumeExperienceSchema = z.object({
+  company: z.string().min(1).max(200),
+  title: z.string().min(1).max(200),
+  dates: z.string().min(1).max(120),
+  bullets: z.array(z.string()).max(8),
+});
+
+const GeneratedResumeEducationSchema = z.object({
+  school: z.string().min(1).max(200),
+  degree: z.string().min(1).max(200),
+  dates: z.string().min(1).max(120),
+});
+
+export const GeneratedResumeSchema = z.object({
+  summary: z.string().min(40).max(900),
+  experience: z.array(GeneratedResumeExperienceSchema).max(12),
+  skills: z.array(z.string()).max(40),
+  education: z.array(GeneratedResumeEducationSchema).max(8),
+});
+
+export type GeneratedResume = z.infer<typeof GeneratedResumeSchema>;
+
 const JdInput = z.object({
   resumeAnalysis: ResumeSchema.nullable(),
   jobDescription: z.string().trim().min(30).max(10000),
@@ -128,6 +150,50 @@ Every list must be JD-specific — do not return generic filler.`,
     return { ...result.experimental_output, usage };
   });
 
+const GenerateResumeInput = z.object({
+  jobDescription: z.string().trim().min(30).max(10000),
+  resumeText: z.string().trim().max(20000).default(""),
+  resumeAnalysis: ResumeSchema.nullable().optional(),
+});
+
+export const generateResume = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth])
+  .inputValidator((data: unknown) => GenerateResumeInput.parse(data))
+  .handler(async ({ data }) => {
+    const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!key) throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+    const usage = await checkAndConsumeAiUsage(5);
+    const gateway = createGeminiProvider(key);
+    const modelName = "gemini-3.1-flash-lite";
+
+    try {
+      const result = await generateObject({
+        model: gateway(modelName),
+        schema: GeneratedResumeSchema,
+        system: `You are a resume writer. Produce a tailored resume based only on facts present in the candidate's resume and resume analysis.
+
+Hard rules:
+- Ground every fact only in the supplied resume and analysis. Never invent companies, titles, dates, certifications, metrics, or skills that are not supported by the input.
+- Tailor the resume to the job description using terms that genuinely match the candidate's background.
+- Keep the structure ATS-friendly and standard: summary, experience, skills, education.
+- Experience entries must include company, title, dates, and clear bullets.
+- Keep the tone factual and direct. Avoid generic AI phrasing such as "results-driven", "leveraged", "spearheaded", "dynamic", "synergy", "successfully", or any repetitive sentence rhythm.
+- No tables or columns; this is structured JSON.
+- Include only facts that are supported by the resume input.
+- If a section is not supported, leave it empty rather than inventing content.`,
+        prompt: `Job description:\n"""${data.jobDescription}"""\n\nResume text:\n"""${data.resumeText.slice(0, 18000)}"""\n\nResume analysis:\n${JSON.stringify(data.resumeAnalysis ?? null)}`,
+      });
+
+      return { ...result.object, usage };
+    } catch (error) {
+      console.error("[generateResume] AI failed", {
+        model: modelName,
+        error: error instanceof Error ? { name: error.name, message: error.message, cause: (error as Error & { cause?: unknown }).cause } : String(error),
+      });
+      throw error;
+    }
+  });
+
 // ---------- AI-generated study plan ----------
 
 const PlanDaySchema = z.object({
@@ -137,6 +203,7 @@ const PlanDaySchema = z.object({
   activities: z.array(z.string()).max(6),
   estimatedHours: z.number().min(0).max(12),
   questions: z.array(z.string()).max(6).optional(),
+  blockType: z.enum(["study", "job_search", "skill_practice"]).optional(),
 });
 
 const PlanInput = z.object({
@@ -176,8 +243,14 @@ Rules:
 - Tailor the plan to the candidate's experienceLevel="${data.experienceLevel}": beginners spend more time on foundations, experienced candidates focus on advanced/behavioral/company-specific prep.
 - Prioritize gaps: missing skills from the resume vs JD, weak areas, and topics the employer emphasizes.
 - focusArea should be a short category (e.g. "Technical foundations", "Tools mastery", "Behavioral stories", "Industry knowledge", "Mock interview", "Rest & review").
+- blockType is required on every day and must match the day's actual work. Use exactly one of these:
+  - "study": learning/interview content, passive review, reading, notes, research, and general prep; this is the baseline/default behavior.
+  - "job_search": actively searching and applying for roles; review new postings, assess fit, tailor resumes, revise cover letters, and submit applications.
+  - "skill_practice": hands-on skill work such as mock problems, practice questions, portfolio work, coding drills, roleplay, writing exercises, or scenario practice; distinct from "study" because it is active and applied.
+- Across the full plan, allocate roughly 20% of days to "job_search" and 20% to "skill_practice", with the rest as "study", unless interviewType or the time budget makes that impractical. If days <= 3, skip "job_search" entirely and focus the plan on interview readiness rather than forcing the ratio. Do not over-optimize the ratio on short plans.
+- For "job_search" days, activities must be concrete and action-oriented, not generic "look for jobs". Good examples: "Review 5 new matches for [role type]", "Tailor resume for your top pick", "Submit 2-3 applications", "Follow up on 2 recruiter contacts", "Evaluate 3 new postings against your target criteria".
 - topics: 2-5 specific topics from the JD/resume analysis.
-- activities: 2-5 concrete actions ("Read X", "Draft STAR story about Y", "Complete 5 practice problems on Z", "Research the company's recent product launches").
+- activities: 2-5 concrete actions. For study days, use learning/review tasks. For skill_practice days, use active exercises. For job_search days, include concrete application-search tasks.
 - If days >= 3, dedicate the second-to-last day to a full mock interview.
 - The last day is always light: rest, review notes, prepare questions for the interviewer.
 - Front-load high-priority gaps; back-load review and behavioral prep.
@@ -613,6 +686,7 @@ const PrepStateSchema = z
   .object({
     resumeText: z.string(),
     resumeAnalysis: z.union([ResumeSchema, z.null()]),
+    generatedResume: z.union([GeneratedResumeSchema, z.null()]).optional(),
     jobDescription: z.string(),
     jdAnalysis: z.union([JdSchema, z.null()]),
     interviewDate: z.union([z.string(), z.null()]).optional(),
@@ -644,6 +718,7 @@ export const savePrep = createServerFn({ method: "POST" })
         roadmap_color: data.roadmapColor ?? null,
         resume_text: data.resumeText,
         resume_analysis: data.resumeAnalysis,
+        generated_resume: data.generatedResume ?? null,
         job_description: data.jobDescription,
         jd_analysis: data.jdAnalysis,
         interview_date: interviewDate,
@@ -672,7 +747,7 @@ export const loadPrep = createServerFn({ method: "GET" })
     const prepSessions = supabase.from("prep_sessions") as any;
     const { data: row, error } = await prepSessions
       .select(
-        "resume_text, resume_analysis, job_description, jd_analysis, interview_date, plan, completed, answers",
+        "resume_text, resume_analysis, generated_resume, job_description, jd_analysis, interview_date, plan, completed, answers",
       )
       .eq("user_id", userId)
       .eq("roadmap_id", roadmapId)
@@ -682,6 +757,7 @@ export const loadPrep = createServerFn({ method: "GET" })
     return {
       resumeText: row.resume_text ?? "",
       resumeAnalysis: (row.resume_analysis as z.infer<typeof ResumeSchema> | null) ?? null,
+      generatedResume: (row.generated_resume as z.infer<typeof GeneratedResumeSchema> | null) ?? null,
       jobDescription: row.job_description ?? "",
       jdAnalysis: (row.jd_analysis as z.infer<typeof JdSchema> | null) ?? null,
       interviewDate: row.interview_date ?? null,

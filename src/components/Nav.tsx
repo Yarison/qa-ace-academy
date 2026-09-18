@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 const links = [
   { to: "/prep", label: "My Calendar" },
   { to: "/prep/today", label: "Today's Prep" },
+  { to: "/jobs", label: "Jobs" },
   { to: "/practice", label: "Practice" },
   { to: "/mock", label: "Mock Interview" },
 ] as const;

@@ -43,6 +43,7 @@ export type Database = {
           answers: Json;
           completed: Json;
           created_at: string;
+          generated_resume: Json | null;
           id: string;
           interview_date: string | null;
           jd_analysis: Json | null;
@@ -58,6 +59,7 @@ export type Database = {
           answers?: Json;
           completed?: Json;
           created_at?: string;
+          generated_resume?: Json | null;
           id?: string;
           interview_date?: string | null;
           jd_analysis?: Json | null;
@@ -73,6 +75,7 @@ export type Database = {
           answers?: Json;
           completed?: Json;
           created_at?: string;
+          generated_resume?: Json | null;
           id?: string;
           interview_date?: string | null;
           jd_analysis?: Json | null;

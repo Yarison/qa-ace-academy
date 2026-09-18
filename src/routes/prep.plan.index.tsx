@@ -775,6 +775,17 @@ function PlanStep() {
                               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-terminal">
                                 {day.focusArea}
                               </span>
+                              {(day.blockType ?? "study") !== "study" && (
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                                    day.blockType === "job_search"
+                                      ? "border-amber/40 bg-amber/10 text-amber"
+                                      : "border-sky-500/40 bg-sky-500/10 text-sky-600"
+                                  }`}
+                                >
+                                  {day.blockType === "job_search" ? "Job search" : "Skill practice"}
+                                </span>
+                              )}
                               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                                 <Clock className="h-3 w-3" /> ~{day.estimatedHours}h
                               </span>
@@ -869,6 +880,13 @@ function TimelineCalendar({
             const isDone = completed.includes(date);
             const isInterview = interviewDate === date;
             const isMilestone = !!planDay && /mock|review|final|onsite|panel/i.test(planDay.focusArea);
+            const normalizedBlockType = planDay?.blockType ?? "study";
+            const blockStyle =
+              normalizedBlockType === "job_search"
+                ? { border: "border-amber/40", bg: "bg-amber/10", text: "text-amber" }
+                : normalizedBlockType === "skill_practice"
+                  ? { border: "border-sky-500/40", bg: "bg-sky-500/10", text: "text-sky-600" }
+                  : colorStyle;
             return (
               <div
                 key={date}
@@ -895,13 +913,23 @@ function TimelineCalendar({
 
                 {planDay ? (
                   <div className="space-y-1 text-[10px]">
-                    <div className={`rounded-md border px-1.5 py-1 ${colorStyle.border} ${colorStyle.bg}`}>
-                      <p className={`line-clamp-1 font-semibold ${colorStyle.text}`}>{planDay.focusArea}</p>
+                    <div className={`rounded-md border px-1.5 py-1 ${blockStyle.border} ${blockStyle.bg}`}>
+                      <p className={`line-clamp-1 font-semibold ${blockStyle.text}`}>{planDay.focusArea}</p>
                       <p className="mt-0.5 text-muted-foreground">{planDay.activities.length} prep tasks</p>
                     </div>
                     {(planDay.questions?.length ?? 0) > 0 && (
                       <div className="rounded-md border border-border bg-background px-1.5 py-1 text-muted-foreground">
                         Practice session: {planDay.questions?.length}
+                      </div>
+                    )}
+                    {normalizedBlockType === "job_search" && (
+                      <div className="rounded-md border border-amber/40 bg-amber/10 px-1.5 py-1 text-amber">
+                        Job search day
+                      </div>
+                    )}
+                    {normalizedBlockType === "skill_practice" && (
+                      <div className="rounded-md border border-sky-500/40 bg-sky-500/10 px-1.5 py-1 text-sky-600">
+                        Skill practice
                       </div>
                     )}
                     {isMilestone && (

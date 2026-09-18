@@ -8,6 +8,22 @@ export type ResumeAnalysis = {
   summary: string;
 };
 
+export type GeneratedResume = {
+  summary: string;
+  experience: Array<{
+    company: string;
+    title: string;
+    dates: string;
+    bullets: string[];
+  }>;
+  skills: string[];
+  education: Array<{
+    school: string;
+    degree: string;
+    dates: string;
+  }>;
+};
+
 export type JdAnalysis = {
   technicalSkills: string[];
   softSkills: string[];
@@ -40,6 +56,8 @@ export type Preferences = {
   interviewType: InterviewType;
 };
 
+export type PlanDayBlockType = "study" | "job_search" | "skill_practice";
+
 export type PlanDay = {
   date: string; // ISO date
   focusArea: string; // e.g. "Technical skills", "Behavioral", "Company research"
@@ -47,6 +65,7 @@ export type PlanDay = {
   activities: string[]; // concrete tasks
   estimatedHours: number;
   questions?: string[]; // interview-style questions to practice this day
+  blockType?: PlanDayBlockType; // optional for older saved plans; defaults to "study"
 };
 
 export type TaskAnswer = {
@@ -63,6 +82,7 @@ export type TaskAnswer = {
 export type PrepState = {
   resumeText: string;
   resumeAnalysis: ResumeAnalysis | null;
+  generatedResume: GeneratedResume | null;
   jobDescription: string;
   jdAnalysis: JdAnalysis | null;
   preferences: Preferences;
@@ -88,6 +108,7 @@ export type PrepWorkspace = {
 export const EMPTY_PREP: PrepState = {
   resumeText: "",
   resumeAnalysis: null,
+  generatedResume: null,
   jobDescription: "",
   jdAnalysis: null,
   preferences: {

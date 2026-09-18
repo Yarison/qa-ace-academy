@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as MockRouteImport } from './routes/mock'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as PrepRouteImport } from './routes/prep'
@@ -19,10 +20,12 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as SqlPlaygroundRouteImport } from './routes/sql-playground'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PracticeCategoryRouteImport } from './routes/practice.$category'
 import { Route as PrepIndexRouteImport } from './routes/prep.index'
 import { Route as PrepJdRouteImport } from './routes/prep.jd'
+import { Route as PrepJobsRouteImport } from './routes/prep.jobs'
 import { Route as PrepResumeRouteImport } from './routes/prep.resume'
 import { Route as PrepTodayRouteImport } from './routes/prep.today'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -42,6 +45,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MockRoute = MockRouteImport.update({
@@ -79,6 +87,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JobsJobIdRoute = JobsJobIdRouteImport.update({
+  id: '/$jobId',
+  path: '/$jobId',
+  getParentRoute: () => JobsRoute,
+} as any)
 const PracticeIndexRoute = PracticeIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -97,6 +110,11 @@ const PrepIndexRoute = PrepIndexRouteImport.update({
 const PrepJdRoute = PrepJdRouteImport.update({
   id: '/jd',
   path: '/jd',
+  getParentRoute: () => PrepRoute,
+} as any)
+const PrepJobsRoute = PrepJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => PrepRoute,
 } as any)
 const PrepResumeRoute = PrepResumeRouteImport.update({
@@ -133,6 +151,7 @@ const PrepPlanDateRoute = PrepPlanDateRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/jobs': typeof JobsRouteWithChildren
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
@@ -140,8 +159,10 @@ export interface FileRoutesByFullPath {
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
+  '/jobs/$jobId': typeof JobsJobIdRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
+  '/prep/jobs': typeof PrepJobsRoute
   '/prep/resume': typeof PrepResumeRoute
   '/prep/today': typeof PrepTodayRoute
   '/practice/': typeof PracticeIndexRoute
@@ -154,13 +175,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/jobs': typeof JobsRouteWithChildren
   '/mock': typeof MockRoute
   '/pricing': typeof PricingRoute
   '/sql-playground': typeof SqlPlaygroundRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
+  '/jobs/$jobId': typeof JobsJobIdRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
+  '/prep/jobs': typeof PrepJobsRoute
   '/prep/resume': typeof PrepResumeRoute
   '/prep/today': typeof PrepTodayRoute
   '/practice': typeof PracticeIndexRoute
@@ -175,6 +199,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/jobs': typeof JobsRouteWithChildren
   '/mock': typeof MockRoute
   '/practice': typeof PracticeRouteWithChildren
   '/prep': typeof PrepRouteWithChildren
@@ -182,8 +207,10 @@ export interface FileRoutesById {
   '/sql-playground': typeof SqlPlaygroundRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/api/chat': typeof ApiChatRoute
+  '/jobs/$jobId': typeof JobsJobIdRoute
   '/practice/$category': typeof PracticeCategoryRoute
   '/prep/jd': typeof PrepJdRoute
+  '/prep/jobs': typeof PrepJobsRoute
   '/prep/resume': typeof PrepResumeRoute
   '/prep/today': typeof PrepTodayRoute
   '/practice/': typeof PracticeIndexRoute
@@ -198,6 +225,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/jobs'
     | '/mock'
     | '/practice'
     | '/prep'
@@ -205,8 +233,10 @@ export interface FileRouteTypes {
     | '/sql-playground'
     | '/history'
     | '/api/chat'
+    | '/jobs/$jobId'
     | '/practice/$category'
     | '/prep/jd'
+    | '/prep/jobs'
     | '/prep/resume'
     | '/prep/today'
     | '/practice/'
@@ -219,13 +249,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/jobs'
     | '/mock'
     | '/pricing'
     | '/sql-playground'
     | '/history'
     | '/api/chat'
+    | '/jobs/$jobId'
     | '/practice/$category'
     | '/prep/jd'
+    | '/prep/jobs'
     | '/prep/resume'
     | '/prep/today'
     | '/practice'
@@ -239,6 +272,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/jobs'
     | '/mock'
     | '/practice'
     | '/prep'
@@ -246,8 +280,10 @@ export interface FileRouteTypes {
     | '/sql-playground'
     | '/_authenticated/history'
     | '/api/chat'
+    | '/jobs/$jobId'
     | '/practice/$category'
     | '/prep/jd'
+    | '/prep/jobs'
     | '/prep/resume'
     | '/prep/today'
     | '/practice/'
@@ -262,6 +298,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  JobsRoute: typeof JobsRouteWithChildren
   MockRoute: typeof MockRoute
   PracticeRoute: typeof PracticeRouteWithChildren
   PrepRoute: typeof PrepRouteWithChildren
@@ -293,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mock': {
@@ -344,6 +388,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jobs/$jobId': {
+      id: '/jobs/$jobId'
+      path: '/$jobId'
+      fullPath: '/jobs/$jobId'
+      preLoaderRoute: typeof JobsJobIdRouteImport
+      parentRoute: typeof JobsRoute
+    }
     '/practice/': {
       id: '/practice/'
       path: '/'
@@ -370,6 +421,13 @@ declare module '@tanstack/react-router' {
       path: '/jd'
       fullPath: '/prep/jd'
       preLoaderRoute: typeof PrepJdRouteImport
+      parentRoute: typeof PrepRoute
+    }
+    '/prep/jobs': {
+      id: '/prep/jobs'
+      path: '/jobs'
+      fullPath: '/prep/jobs'
+      preLoaderRoute: typeof PrepJobsRouteImport
       parentRoute: typeof PrepRoute
     }
     '/prep/resume': {
@@ -428,6 +486,16 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface JobsRouteChildren {
+  JobsJobIdRoute: typeof JobsJobIdRoute
+}
+
+const JobsRouteChildren: JobsRouteChildren = {
+  JobsJobIdRoute: JobsJobIdRoute,
+}
+
+const JobsRouteWithChildren = JobsRoute._addFileChildren(JobsRouteChildren)
+
 interface PracticeRouteChildren {
   PracticeCategoryRoute: typeof PracticeCategoryRoute
   PracticeIndexRoute: typeof PracticeIndexRoute
@@ -444,6 +512,7 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
 
 interface PrepRouteChildren {
   PrepJdRoute: typeof PrepJdRoute
+  PrepJobsRoute: typeof PrepJobsRoute
   PrepResumeRoute: typeof PrepResumeRoute
   PrepTodayRoute: typeof PrepTodayRoute
   PrepIndexRoute: typeof PrepIndexRoute
@@ -453,6 +522,7 @@ interface PrepRouteChildren {
 
 const PrepRouteChildren: PrepRouteChildren = {
   PrepJdRoute: PrepJdRoute,
+  PrepJobsRoute: PrepJobsRoute,
   PrepResumeRoute: PrepResumeRoute,
   PrepTodayRoute: PrepTodayRoute,
   PrepIndexRoute: PrepIndexRoute,
@@ -466,6 +536,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  JobsRoute: JobsRouteWithChildren,
   MockRoute: MockRoute,
   PracticeRoute: PracticeRouteWithChildren,
   PrepRoute: PrepRouteWithChildren,

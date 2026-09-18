@@ -239,7 +239,16 @@ function JdStep() {
 
       <div className="surface mt-8 space-y-6 rounded-2xl border border-border p-6">
         <div>
-          <label className="block text-sm font-medium">Job description</label>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <label className="block text-sm font-medium">Job description</label>
+            <Link
+              to="/prep/jobs"
+              search={isNewRoadmap ? { new: "1" } : undefined}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              or search real job postings
+            </Link>
+          </div>
           <textarea
             value={jd}
             onChange={(e) => setJd(e.target.value)}
